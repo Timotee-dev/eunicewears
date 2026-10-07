@@ -179,23 +179,47 @@
         i === 0 ? h("span", { class: "badge" }, "Main photo") : null)) : [h("li", { class: "empty" }, "No photos yet. The first photo is the one shoppers see in the shop.")]));
     }
 
+    /* Stock, compact: one block per colour, one short row per size. Tap minus/plus to change by one,
+       or tap the number to type the exact quantity. */
     function renderVariants(variants) {
       const host = $("[data-variants]");
       if (!variants.length) { host.replaceChildren(empty("No sizes yet, so the shop shows this as sold out. Open the box below, tick the sizes, type the colours and press Add to stock.")); return; }
-      host.replaceChildren(table(["Fit", "Size", "Colour", "SKU", "Stock", "Add or remove stock", "On sale"], variants.map((v) => {
-        const input = h("input", { type: "number", "aria-label": "Units to add (negative removes)", placeholder: "+10 or -2", class: "input--small" });
-        const refresh = (updated) => renderVariants(variants.map((x) => (x.id === updated.id ? updated : x)));
-        return [v.fit ? v.fit[0].toUpperCase() + v.fit.slice(1) : "One fit", v.size, v.color, v.sku,
-          h("strong", { class: v.stock <= v.low_stock_threshold ? "stock-note--low" : "" }, String(v.stock)),
-          h("div", { class: "stepper" }, input, h("button", { class: "btn btn--ghost btn--small", type: "button", onclick: (e) => busy(e.currentTarget, async () => {
-            const delta = parseInt(input.value, 10);
-            if (!delta) { toast("Enter how many units to add or remove.", "error"); return; }
-            refresh(await api("/admin/variants/" + v.id + "/stock/", { method: "POST", body: { delta } }));
-            toast("Stock updated.");
-          }) }, "Apply")),
-          h("input", { type: "checkbox", checked: v.is_active, disabled: !isAdmin, "aria-label": "Available for sale",
-            onchange: async (e) => { try { refresh(await api("/admin/variants/" + v.id + "/", { method: "PATCH", body: { is_active: e.target.checked } })); } catch (error) { toast(error.message, "error"); e.target.checked = !e.target.checked; } } })];
-      })));
+      const ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL", "4XL"];
+      const rank = (size) => { const i = ORDER.indexOf(String(size).toUpperCase()); return i === -1 ? 99 : i; };
+      const refresh = (updated) => renderVariants(variants.map((x) => (x.id === updated.id ? updated : x)));
+      const move = (v, delta, button) => busy(button, async () => refresh(await api("/admin/variants/" + v.id + "/stock/", { method: "POST", body: { delta } })));
+      const groups = new Map();
+      variants.forEach((v) => { const key = (v.fit || "") + "|" + v.color; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(v); });
+      const total = variants.reduce((sum, v) => sum + v.stock, 0);
+
+      host.replaceChildren(
+        h("p", { class: "muted" }, total + " in stock across " + variants.length + (variants.length === 1 ? " size" : " sizes and colours") + ". Tap a number to type the exact quantity."),
+        h("div", { class: "stock" }, [...groups.values()].map((list) => {
+          const first = list[0], dot = h("span", { class: "swatch", "aria-hidden": "true" });
+          dot.style.background = first.color_hex || "#C9B8A3";
+          return h("section", { class: "stock__group" },
+            h("h3", { class: "stock__title" }, dot, first.color, first.fit ? h("span", { class: "muted" }, first.fit[0].toUpperCase() + first.fit.slice(1)) : null),
+            h("ul", { class: "stock__rows" }, list.slice().sort((x, y) => rank(x.size) - rank(y.size)).map((v) => {
+              const label = v.size + " " + v.color;
+              const count = h("button", { class: "stock__count" + (v.stock <= v.low_stock_threshold ? " is-low" : ""), type: "button", title: "SKU " + v.sku, "aria-label": label + ": " + v.stock + " in stock. Change quantity" }, String(v.stock));
+              count.addEventListener("click", () => {
+                const answer = window.prompt("How many " + label + " do you have now?", String(v.stock));
+                if (answer === null) return;
+                const wanted = parseInt(answer, 10);
+                if (Number.isNaN(wanted) || wanted < 0) { toast("Type a number, 0 or more.", "error"); return; }
+                if (wanted !== v.stock) move(v, wanted - v.stock, count);
+              });
+              const minus = h("button", { class: "stock__step", type: "button", "aria-label": "One fewer " + label, disabled: v.stock === 0 }, "\u2212");
+              const plus = h("button", { class: "stock__step", type: "button", "aria-label": "One more " + label }, "+");
+              minus.addEventListener("click", () => move(v, -1, minus));
+              plus.addEventListener("click", () => move(v, 1, plus));
+              const selling = h("input", { type: "checkbox", checked: v.is_active, disabled: !isAdmin, "aria-label": "Sell " + label,
+                onchange: async (e) => { try { refresh(await api("/admin/variants/" + v.id + "/", { method: "PATCH", body: { is_active: e.target.checked } })); } catch (error) { toast(error.message, "error"); e.target.checked = !e.target.checked; } } });
+              return h("li", { class: "stock__row" + (v.is_active ? "" : " is-off") },
+                h("span", { class: "stock__size" }, v.size), minus, count, plus,
+                h("label", { class: "stock__sell" }, selling, h("span", {}, "Selling")));
+            })));
+        })));
     }
 
     /* Read the simple "sizes, colours, quantity" fields from a form. */

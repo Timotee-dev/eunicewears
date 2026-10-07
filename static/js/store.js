@@ -174,7 +174,7 @@
       const thumbs = product.images.length > 1 ? h("div", { class: "gallery__thumbs" }, product.images.map((image, i) =>
         h("button", { type: "button", "aria-label": "Show photo " + (i + 1), onclick: () => { main.src = image.url; main.alt = image.alt || product.name; } },
           h("img", { src: image.url, alt: "", width: 120, height: 150, loading: "lazy" })))) : null;
-      host.replaceChildren(main, thumbs);
+      host.replaceChildren(...[main, thumbs].filter(Boolean));
     }
 
     api("/products/" + root.dataset.slug + "/").then((data) => {
