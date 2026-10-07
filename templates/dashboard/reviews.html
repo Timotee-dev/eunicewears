@@ -1,0 +1,7 @@
+{% extends "dashboard/base.html" %}{% block title %}Reviews{% endblock %}{% block page %}reviews{% endblock %}
+{% block content %}
+<h1>Reviews</h1>
+<form class="filters" data-filters><div class="field"><label for="status">Show</label><select id="status" name="status">
+  <option value="pending">Waiting for approval</option><option value="approved">Approved</option><option value="hidden">Hidden</option><option value="">All</option></select></div></form>
+<ul class="review-list" data-reviews aria-busy="true"><li class="skeleton"></li></ul>
+{% endblock %}

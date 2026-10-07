@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Checkout | Eunice Wears{% endblock %}
+{% block page %}checkout{% endblock %}
+{% block content %}
+<section class="wrap cartpage">
+  <h1>Checkout</h1>
+  <div class="split">
+    <div>
+      <h2>Delivery</h2>
+      <div class="choice-row" role="radiogroup" aria-label="Delivery or pickup">
+        <label class="choice"><input type="radio" name="mode" value="delivery" checked> Deliver to me</label>
+        <label class="choice"><input type="radio" name="mode" value="pickup"> I will pick it up</label>
+      </div>
+      <h2>Address</h2>
+      <ul class="address-list" data-addresses aria-busy="true"><li class="skeleton"></li></ul>
+      <details class="disclosure" data-new-address>
+        <summary>Add a new address</summary>
+        {% include "account/_address_form.html" %}
+      </details>
+    </div>
+    <aside class="summary">
+      <h2>Order summary</h2>
+      <ul class="mini-lines" data-mini></ul>
+      <dl class="totals">
+        <div><dt>Subtotal</dt><dd data-subtotal>&ndash;</dd></div>
+        <div data-discount-row hidden><dt data-discount-label>Discount</dt><dd data-discount></dd></div>
+        <div><dt data-ship-label>Delivery</dt><dd data-shipping>&ndash;</dd></div>
+        <div class="totals__grand"><dt>Total</dt><dd data-total>&ndash;</dd></div>
+      </dl>
+      <p class="muted" data-estimate></p>
+      <form class="form promo" data-promo novalidate>
+        <label for="promo">Promo code</label>
+        <div class="newsletter__row"><input id="promo" name="promo_code" autocomplete="off" autocapitalize="characters"><button class="btn btn--ghost" type="submit">Apply</button></div>
+        <p class="field-error" data-promo-error></p>
+      </form>
+      <p class="form-error" role="alert" data-checkout-error hidden></p>
+      <button class="btn btn--block" type="button" data-pay disabled>Pay now</button>
+      <p class="muted small">You pay securely on Paystack. We confirm the payment with Paystack before your order is marked paid.</p>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "auth/_shell.html" %}
+{% block title %}Confirm your email | Eunice Wears{% endblock %}
+{% block heading %}Confirm your email{% endblock %}
+{% block form %}
+<div data-verify>
+  <p data-verify-status>Confirming your email&hellip;</p>
+  <a class="btn btn--block" href="{% url 'login' %}" data-verify-ok hidden>Sign in</a>
+  <form class="form" data-form="resend" data-verify-fail hidden novalidate>
+    <p class="form-error" role="alert" data-form-error hidden></p>
+    <div class="field"><label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+      <p class="field-error" data-error-for="email"></p></div>
+    <button class="btn btn--block" type="submit" data-busy-label="Sending">Send a new link</button>
+  </form>
+</div>
+{% endblock %}

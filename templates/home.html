@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load static seo %}
+{% block page %}home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero__glow" aria-hidden="true"></div>
+  <div class="wrap hero__grid">
+    <div class="hero__copy">
+      <h1 class="hero__title" aria-label="{{ home_content.headline }}">{% for word in headline_words %}<span class="word" aria-hidden="true"><span>{{ word }}</span></span> {% endfor %}</h1>
+      <p class="hero__lede">{{ home_content.lede }}</p>
+      <div class="actions">
+        <a class="btn btn--light btn--arrow" href="{% url 'shop' %}">Shop collection <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn--outline-light" href="{% url 'shop' %}?flag=new">New arrivals</a>
+      </div>
+    </div>
+    <div class="hero__showcase" data-hero-showcase hidden></div>
+  </div>
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track">
+      {% for _ in "12" %}<span>Oversized fit</span><span>Regular fit</span><span>Plain round neck</span><span>Pay with Paystack</span><span>Delivery across Nigeria</span><span>Pickup available</span>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<div class="wrap shelves" data-home-shelves aria-busy="true">
+  <ul class="grid grid--home"><li class="skeleton skeleton--card"></li><li class="skeleton skeleton--card"></li><li class="skeleton skeleton--card"></li><li class="skeleton skeleton--card"></li><li class="skeleton skeleton--card"></li></ul>
+</div>
+{% jsonld org_schema %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,16 @@
+<form class="form" data-form="address" novalidate>
+          <p class="form-error" role="alert" data-form-error hidden></p>
+          <div class="field-row">
+            <div class="field"><label for="a_first">First name</label><input id="a_first" name="first_name" value="{{ user.first_name }}" required><p class="field-error" data-error-for="first_name"></p></div>
+            <div class="field"><label for="a_last">Last name</label><input id="a_last" name="last_name" value="{{ user.last_name }}" required><p class="field-error" data-error-for="last_name"></p></div>
+          </div>
+          <div class="field"><label for="a_phone">Phone number</label><input id="a_phone" name="phone" type="tel" value="{{ user.phone }}" required><p class="field-error" data-error-for="phone"></p></div>
+          <div class="field"><label for="a_line1">Address</label><input id="a_line1" name="line1" autocomplete="address-line1" required><p class="field-error" data-error-for="line1"></p></div>
+          <div class="field"><label for="a_line2">Apartment <span class="muted">(optional)</span></label><input id="a_line2" name="line2" autocomplete="address-line2"><p class="field-error" data-error-for="line2"></p></div>
+          <div class="field-row">
+            <div class="field"><label for="a_city">City</label><input id="a_city" name="city" required><p class="field-error" data-error-for="city"></p></div>
+            <div class="field"><label for="a_state">State</label><input id="a_state" name="state" required><p class="field-error" data-error-for="state"></p></div>
+          </div>
+          <div class="field"><label for="a_notes">Delivery instructions <span class="muted">(optional)</span></label><input id="a_notes" name="delivery_instructions"><p class="field-error" data-error-for="delivery_instructions"></p></div>
+          <button class="btn" type="submit" data-busy-label="Saving">Save address</button>
+        </form>

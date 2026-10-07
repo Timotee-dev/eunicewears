@@ -1,0 +1,8 @@
+{% extends "dashboard/base.html" %}{% block title %}Settings{% endblock %}{% block page %}settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<section><h2>Delivery rates</h2>
+  <p class="muted">One active rate per zone is used at checkout. "Free above" is the order subtotal at which delivery becomes free.</p>
+  <div data-shipping aria-busy="true"><div class="skeleton"></div></div></section>
+<section><h2>Categories</h2><div data-categories aria-busy="true"><div class="skeleton"></div></div></section>
+{% endblock %}

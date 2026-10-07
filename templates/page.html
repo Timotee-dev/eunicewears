@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ content.title }} | Eunice Wears{% endblock %}
+{% block og_title %}{{ content.title }} | Eunice Wears{% endblock %}
+{% block content %}
+<article class="wrap prose">
+  <h1>{{ content.title }}</h1>
+  {% if content.body %}{{ content.body|linebreaks }}{% else %}<p class="muted">This page is being written. Check back soon.</p>{% endif %}
+</article>
+{% endblock %}

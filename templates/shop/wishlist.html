@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Wishlist | Eunice Wears{% endblock %}
+{% block robots %}<meta name="robots" content="noindex">{% endblock %}
+{% block page %}wishlist{% endblock %}
+{% block content %}
+<section class="wrap cartpage">
+  <h1>Wishlist</h1>
+  <ul class="grid" data-grid aria-busy="true"><li class="skeleton skeleton--card"></li></ul>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

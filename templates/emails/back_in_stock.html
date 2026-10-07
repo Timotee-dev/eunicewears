@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% block body %}
+<h1 style="margin:0 0 16px;font-size:26px;">Back in stock</h1>
+<p>{{ product.name }} in {{ variant.label }} is available again. You asked us to let you know.</p>
+<p style="margin:28px 0;"><a href="{{ link }}" style="background:#6B4226;color:#FAF5EE;padding:14px 26px;text-decoration:none;font-weight:bold;">Shop it now</a></p>
+<p style="font-size:13px;color:#7A6657;">Stock is limited and is not held for you. This is the only email you will get about this request.</p>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "auth/_shell.html" %}
+{% block title %}Reset your password | Eunice Wears{% endblock %}
+{% block heading %}Reset your password{% endblock %}
+{% block intro %}<p class="muted">Enter your account email and we will send a link to set a new password.</p>{% endblock %}
+{% block form %}
+<form class="form" data-form="forgot" novalidate>
+  <p class="form-error" role="alert" data-form-error hidden></p>
+  <div class="field"><label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" required>
+    <p class="field-error" data-error-for="email"></p></div>
+  <button class="btn btn--block" type="submit" data-busy-label="Sending">Send reset link</button>
+</form>
+<div class="notice" data-success hidden><h2>Check your email</h2><p>If an account uses that email, a reset link is on its way.</p></div>
+<p class="auth__links"><a href="{% url 'login' %}">Back to sign in</a></p>
+{% endblock %}

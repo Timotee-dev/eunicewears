@@ -1,0 +1,7 @@
+{% extends "dashboard/base.html" %}{% block title %}Customers{% endblock %}{% block page %}customers{% endblock %}
+{% block content %}
+<h1>Customers</h1>
+<form class="filters" data-filters><div class="field filters__search"><label for="q">Search</label><input id="q" name="q" type="search" placeholder="Name, email or phone"></div></form>
+<div data-table aria-busy="true"><div class="skeleton"></div></div>
+<button class="btn btn--ghost" type="button" data-more hidden>Show more</button>
+{% endblock %}

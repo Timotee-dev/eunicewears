@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Shop tees | Eunice Wears{% endblock %}
+{% block page %}shop{% endblock %}
+{% block content %}
+<section class="wrap shop">
+  <header class="shop__head">
+    <h1>Shop</h1>
+    <p class="muted" data-result-count aria-live="polite"></p>
+  </header>
+  <form class="filters" data-filters role="search" aria-label="Filter products">
+    <div class="field filters__search"><label for="f_q">Search</label><input id="f_q" name="q" type="search" placeholder="Name, colour or SKU"></div>
+    <div class="field"><label for="f_fit">Fit</label><select id="f_fit" name="fit"><option value="">All fits</option></select></div>
+    <div class="field"><label for="f_size">Size</label><select id="f_size" name="size"><option value="">All sizes</option></select></div>
+    <div class="field"><label for="f_color">Colour</label><select id="f_color" name="color"><option value="">All colours</option></select></div>
+    <div class="field"><label for="f_sort">Sort</label><select id="f_sort" name="sort"><option value="">Newest</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></div>
+    <label class="check"><input type="checkbox" name="in_stock" value="1"> In stock only</label>
+    <button class="btn btn--ghost btn--small" type="reset">Clear filters</button>
+  </form>
+  <ul class="grid" data-grid aria-busy="true"></ul>
+  <div class="shop__more"><button class="btn btn--ghost" type="button" data-more hidden>Show more</button></div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

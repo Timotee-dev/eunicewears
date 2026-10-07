@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Campaign photo placeholder">
+  <rect width="800" height="1000" fill="#EFE3D3"/>
+  <circle cx="400" cy="470" r="330" fill="#E4D2BC"/>
+  <path d="M290 270 L170 325 L95 470 L195 522 L240 445 L240 820 L560 820 L560 445 L605 522 L705 470 L630 325 L510 270 C490 322 310 322 290 270 Z" fill="#FAF5EE" stroke="#6B4226" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M290 270 C310 322 490 322 510 270" fill="none" stroke="#6B4226" stroke-width="5" stroke-linecap="round" transform="translate(0 14)" opacity="0.45"/>
+  <text x="400" y="915" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#7A6657">Replace with campaign photo (4:5)</text>
+</svg>

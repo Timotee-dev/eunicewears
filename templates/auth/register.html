@@ -1,0 +1,33 @@
+{% extends "auth/_shell.html" %}
+{% block title %}Create account | Eunice Wears{% endblock %}
+{% block heading %}Create account{% endblock %}
+{% block form %}
+<form class="form" data-form="register" novalidate>
+  <p class="form-error" role="alert" data-form-error hidden></p>
+  <div class="field-row">
+    <div class="field"><label for="first_name">First name</label>
+      <input id="first_name" name="first_name" autocomplete="given-name" required>
+      <p class="field-error" data-error-for="first_name"></p></div>
+    <div class="field"><label for="last_name">Last name</label>
+      <input id="last_name" name="last_name" autocomplete="family-name" required>
+      <p class="field-error" data-error-for="last_name"></p></div>
+  </div>
+  <div class="field"><label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" required>
+    <p class="field-error" data-error-for="email"></p></div>
+  <div class="field"><label for="phone">Phone number <span class="muted">(optional)</span></label>
+    <input id="phone" name="phone" type="tel" autocomplete="tel">
+    <p class="field-error" data-error-for="phone"></p></div>
+  <div class="field"><label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" aria-describedby="password-hint" required>
+    <p class="hint" id="password-hint">At least 8 characters, not only numbers.</p>
+    <p class="field-error" data-error-for="password"></p></div>
+  <label class="check"><input type="checkbox" name="marketing_opt_in"> Email me about new colours and restocks</label>
+  <button class="btn btn--block" type="submit" data-busy-label="Creating account">Create account</button>
+</form>
+<div class="notice" data-success hidden>
+  <h2>Check your email</h2>
+  <p>We sent a confirmation link to <strong data-success-email></strong>. Open it to finish setting up your account. The link works for 24 hours.</p>
+</div>
+<p class="auth__links"><a href="{% url 'login' %}">Already have an account? Sign in</a></p>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "auth/_shell.html" %}
+{% block title %}Set a new password | Eunice Wears{% endblock %}
+{% block heading %}Set a new password{% endblock %}
+{% block form %}
+<form class="form" data-form="reset" novalidate>
+  <p class="form-error" role="alert" data-form-error hidden></p>
+  <div class="field"><label for="new_password">New password</label>
+    <input id="new_password" name="new_password" type="password" autocomplete="new-password" required>
+    <p class="hint">At least 8 characters, not only numbers.</p>
+    <p class="field-error" data-error-for="new_password"></p></div>
+  <button class="btn btn--block" type="submit" data-busy-label="Saving">Save new password</button>
+</form>
+<div class="notice" data-success hidden><h2>Password changed</h2><p><a href="{% url 'login' %}">Sign in with your new password</a></p></div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Your order | Eunice Wears{% endblock %}
+{% block page %}success{% endblock %}
+{% block content %}
+<section class="auth"><div class="auth__panel" data-result aria-live="polite">
+  <h1 data-result-title>Confirming your payment&hellip;</h1>
+  <p data-result-text>This takes a few seconds. Keep this page open.</p>
+  <div class="actions" data-result-actions></div>
+</div></section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

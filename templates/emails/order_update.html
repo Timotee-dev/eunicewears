@@ -1,0 +1,8 @@
+{% extends "emails/_base.html" %}{% block body %}
+<h1 style="margin:0 0 16px;font-size:26px;">{{ heading }}</h1>
+<p>Hi {{ order.shipping_address.first_name|default:"there" }}, {{ body }}</p>
+{% if note %}<p>{{ note }}</p>{% endif %}
+{% if order.tracking_number %}<p>Tracking: <strong>{{ order.tracking_number }}</strong></p>{% endif %}
+<p style="margin:28px 0;"><a href="{{ SITE_URL }}/account/orders/{{ order.number }}/" style="background:#6B4226;color:#FAF5EE;padding:14px 26px;text-decoration:none;font-weight:bold;">View your order</a></p>
+{% if can_review %}<p style="font-size:13px;color:#7A6657;">You can now review what you bought from each product's page.</p>{% endif %}
+{% endblock %}

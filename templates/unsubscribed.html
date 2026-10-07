@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Unsubscribed | Eunice Wears{% endblock %}
+{% block robots %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="auth"><div class="auth__panel">
+  {% if found %}<h1>You are unsubscribed</h1><p class="muted">We will not send you any more newsletter emails. Order emails still arrive as normal.</p>
+  {% else %}<h1>Link not recognised</h1><p class="muted">This unsubscribe link is not valid. Use the link from your most recent email.</p>{% endif %}
+  <a class="btn" href="/">Back to the store</a>
+</div></section>
+{% endblock %}

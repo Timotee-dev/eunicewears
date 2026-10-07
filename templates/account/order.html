@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Order {{ number }} | Eunice Wears{% endblock %}
+{% block page %}order{% endblock %}
+{% block content %}
+<section class="wrap cartpage" data-number="{{ number }}">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="{% url 'account' %}">Account</a> / <span>Order {{ number }}</span></nav>
+  <h1>Order {{ number }}</h1>
+  <div class="split" data-order aria-busy="true"><div class="skeleton skeleton--tall"></div></div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

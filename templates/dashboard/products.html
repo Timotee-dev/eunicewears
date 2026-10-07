@@ -1,0 +1,7 @@
+{% extends "dashboard/base.html" %}{% block title %}Products{% endblock %}{% block page %}products{% endblock %}
+{% block content %}
+<header class="dash__head"><h1>Products</h1><a class="btn" href="{% url 'dashboard-product-new' %}" data-admin-only>Add product</a></header>
+<form class="filters" data-filters><div class="field filters__search"><label for="q">Search</label><input id="q" name="q" type="search" placeholder="Name or SKU"></div></form>
+<div data-table aria-busy="true"><div class="skeleton"></div></div>
+<button class="btn btn--ghost" type="button" data-more hidden>Show more</button>
+{% endblock %}

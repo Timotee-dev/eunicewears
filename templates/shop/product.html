@@ -1,0 +1,71 @@
+{% extends "base.html" %}{% load static money seo %}
+{% block title %}{{ product.name }} | Eunice Wears{% endblock %}
+{% block description %}{{ product.short_description|default:product.name }}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ product.name }} | Eunice Wears{% endblock %}
+{% block og_description %}{{ product.short_description|default:product.name }}{% endblock %}
+{% block page %}product{% endblock %}
+{% block content %}
+<section class="wrap product" data-slug="{{ product.slug }}" data-product-id="{{ product.id }}">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="{% url 'shop' %}">Shop</a> / <span>{{ product.name }}</span></nav>
+  <div class="product__grid">
+    <div class="gallery" data-gallery><div class="skeleton skeleton--tall"></div></div>
+    <div class="product__info">
+      <h1>{{ product.name }}</h1>
+      <p class="price" data-price>{{ product.current_price|naira }}</p>
+      <p class="rating" data-rating hidden></p>
+      <p>{{ product.short_description }}</p>
+      <form class="form" data-buy novalidate>
+        <div data-options></div>
+        {% if size_tables %}<p><button class="link-button" type="button" data-size-guide-open>Size guide</button></p>{% endif %}
+        <p class="stock-note" data-stock aria-live="polite"></p>
+        <div class="buybar">
+          <div class="field qty"><label for="qty">Quantity</label><input id="qty" name="quantity" type="number" min="1" value="1" inputmode="numeric"></div>
+          <button class="btn btn--block" type="submit" disabled data-add>Choose your options</button>
+        </div>
+      </form>
+      <form class="form notify" data-form="notify" hidden novalidate>
+        <p><strong>Want this one?</strong> We will email you once when it is back.</p>
+        {% if not user.is_authenticated %}<div class="field"><label for="notify-email">Email</label><input id="notify-email" name="email" type="email" autocomplete="email" required><p class="field-error" data-error-for="email"></p></div>{% endif %}
+        <button class="btn btn--ghost btn--block" type="submit" data-busy-label="Saving">Email me when it is back</button>
+      </form>
+      {% if user.is_authenticated %}<button class="btn btn--ghost btn--block wish" type="button" data-wish aria-pressed="false">Save to wishlist</button>
+      {% else %}<p class="muted small"><a href="{% url 'login' %}?next={{ request.path|urlencode }}">Sign in</a> to save this to a wishlist.</p>{% endif %}
+      <details class="disclosure" open><summary>Description</summary><p data-description></p></details>
+      <details class="disclosure"><summary>Material and care</summary><p data-materials></p><p data-care></p></details>
+    </div>
+  </div>
+
+  <section class="reviews" aria-labelledby="reviews-h">
+    <h2 id="reviews-h">Reviews</h2>
+    <p class="muted" data-review-summary>Loading reviews&hellip;</p>
+    <ul class="review-list" data-review-list></ul>
+    <form class="form review-form" data-form="review" hidden novalidate>
+      <h3>Write a review</h3>
+      <p class="form-error" role="alert" data-form-error hidden></p>
+      <div class="field"><label for="review-rating">Rating</label>
+        <select id="review-rating" name="rating"><option value="5">5, loved it</option><option value="4">4, good</option><option value="3">3, okay</option><option value="2">2, not great</option><option value="1">1, poor</option></select></div>
+      <div class="field"><label for="review-title">Headline <span class="muted">(optional)</span></label><input id="review-title" name="title" maxlength="120"><p class="field-error" data-error-for="title"></p></div>
+      <div class="field"><label for="review-comment">Your review</label><textarea id="review-comment" name="comment" rows="4" maxlength="2000"></textarea><p class="field-error" data-error-for="comment"></p></div>
+      <button class="btn" type="submit" data-busy-label="Sending">Send review</button>
+    </form>
+  </section>
+</section>
+{% if size_tables %}
+<dialog class="dialog" data-size-guide aria-labelledby="size-guide-h">
+  <h2 id="size-guide-h">Size guide</h2>
+  {% for label, rows in size_tables %}
+  <h3>{{ label }}</h3>
+  <div class="table-wrap"><table>
+    <thead><tr>{% for column in size_columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table></div>
+  {% endfor %}
+  {% if size_note %}<p class="muted">{{ size_note }}</p>{% endif %}
+  <button class="btn" type="button" data-size-guide-close>Close</button>
+</dialog>
+{% endif %}
+{% jsonld product_schema %}
+{% jsonld crumb_schema %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

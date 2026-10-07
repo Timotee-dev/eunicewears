@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Your cart | Eunice Wears{% endblock %}
+{% block page %}cart{% endblock %}
+{% block content %}
+<section class="wrap cartpage">
+  <h1>Your cart</h1>
+  <div class="split">
+    <ul class="lines" data-lines aria-busy="true"><li class="skeleton"></li></ul>
+    <aside class="summary" data-summary hidden>
+      <dl class="totals"><div><dt>Subtotal</dt><dd data-subtotal></dd></div></dl>
+      <p class="muted">Delivery is calculated at checkout.</p>
+      <p class="form-error" data-cart-problem hidden>Fix the items marked above before checking out.</p>
+      <a class="btn btn--block" href="{% url 'checkout' %}" data-checkout>Checkout</a>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}

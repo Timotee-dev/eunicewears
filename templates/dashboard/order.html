@@ -1,0 +1,6 @@
+{% extends "dashboard/base.html" %}{% block title %}Order {{ number }}{% endblock %}{% block page %}order{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{% url 'dashboard-orders' %}">Orders</a> / <span>{{ number }}</span></nav>
+<h1>Order {{ number }}</h1>
+<div class="dash__cols" data-order data-number="{{ number }}" aria-busy="true"><div class="skeleton skeleton--tall"></div></div>
+{% endblock %}

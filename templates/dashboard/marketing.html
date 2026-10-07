@@ -1,0 +1,10 @@
+{% extends "dashboard/base.html" %}{% block title %}Marketing{% endblock %}{% block page %}marketing{% endblock %}
+{% block content %}
+<h1>Marketing</h1>
+<section><h2>Promo codes</h2>
+  <p class="muted">Give a code either a percentage or a fixed amount. Leave limits empty for no limit.</p>
+  <div data-promos aria-busy="true"><div class="skeleton"></div></div></section>
+<section><h2>Newsletter</h2>
+  <p><strong data-subscribers>&ndash;</strong> active subscribers.</p>
+  <a class="btn btn--ghost" href="/api/admin/newsletter/export/" download>Download subscriber list (CSV)</a></section>
+{% endblock %}

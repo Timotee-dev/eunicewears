@@ -1,0 +1,12 @@
+{% extends "dashboard/base.html" %}{% block title %}Orders{% endblock %}{% block page %}orders{% endblock %}
+{% block content %}
+<h1>Orders</h1>
+<form class="filters" data-filters>
+  <div class="field filters__search"><label for="q">Search</label><input id="q" name="q" type="search" placeholder="Order number, name, email or phone"></div>
+  <div class="field"><label for="status">Status</label><select id="status" name="status">
+    <option value="">All</option><option value="pending_payment">Pending payment</option><option value="paid">Paid</option><option value="processing">Processing</option><option value="ready_for_delivery">Ready for delivery</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option><option value="refund_requested">Refund requested</option><option value="refunded">Refunded</option>
+  </select></div>
+</form>
+<div data-table aria-busy="true"><div class="skeleton"></div></div>
+<button class="btn btn--ghost" type="button" data-more hidden>Show more</button>
+{% endblock %}

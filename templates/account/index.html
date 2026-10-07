@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Your account | Eunice Wears{% endblock %}
+{% block content %}
+<section class="wrap account">
+  <header class="account__head">
+    <h1>Hello, {{ user.first_name }}</h1>
+    <p class="muted">{{ user.email }}</p>
+  </header>
+
+  <div class="account__grid">
+    <section aria-labelledby="profile-h">
+      <h2 id="profile-h">Profile</h2>
+      <form class="form" data-form="profile" novalidate>
+        <p class="form-error" role="alert" data-form-error hidden></p>
+        <div class="field-row">
+          <div class="field"><label for="first_name">First name</label>
+            <input id="first_name" name="first_name" value="{{ user.first_name }}" required>
+            <p class="field-error" data-error-for="first_name"></p></div>
+          <div class="field"><label for="last_name">Last name</label>
+            <input id="last_name" name="last_name" value="{{ user.last_name }}" required>
+            <p class="field-error" data-error-for="last_name"></p></div>
+        </div>
+        <div class="field"><label for="phone">Phone number</label>
+          <input id="phone" name="phone" type="tel" value="{{ user.phone }}">
+          <p class="field-error" data-error-for="phone"></p></div>
+        <label class="check"><input type="checkbox" name="marketing_opt_in" {% if user.profile.marketing_opt_in %}checked{% endif %}> Email me about new colours and restocks</label>
+        <button class="btn" type="submit" data-busy-label="Saving">Save profile</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="password-h">
+      <h2 id="password-h">Password</h2>
+      <form class="form" data-form="password" novalidate>
+        <p class="form-error" role="alert" data-form-error hidden></p>
+        <div class="field"><label for="current_password">Current password</label>
+          <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+          <p class="field-error" data-error-for="current_password"></p></div>
+        <div class="field"><label for="new_password">New password</label>
+          <input id="new_password" name="new_password" type="password" autocomplete="new-password" required>
+          <p class="field-error" data-error-for="new_password"></p></div>
+        <button class="btn" type="submit" data-busy-label="Saving">Change password</button>
+      </form>
+    </section>
+
+    <section class="account__wide" aria-labelledby="orders-h">
+      <h2 id="orders-h">Orders</h2>
+      <div data-orders aria-busy="true"><div class="skeleton"></div></div>
+    </section>
+
+    <section class="account__wide" aria-labelledby="addresses-h">
+      <h2 id="addresses-h">Delivery addresses</h2>
+      <ul class="address-list" data-addresses aria-busy="true"><li class="skeleton"></li></ul>
+      <details class="disclosure">
+        <summary>Add an address</summary>
+        {% include "account/_address_form.html" %}
+      </details>
+    </section>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/account.js' %}" defer></script>{% endblock %}

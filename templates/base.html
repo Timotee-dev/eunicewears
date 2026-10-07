@@ -1,0 +1,118 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Eunice Wears{% endblock %}</title>
+  <meta name="description" content="{% block description %}Plain round neck tees in oversized and regular fits, made to be worn every day.{% endblock %}">
+  <meta name="theme-color" content="#6B4226">
+  <link rel="canonical" href="{{ canonical_url }}">
+  <meta property="og:site_name" content="Eunice Wears">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}Eunice Wears{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Plain round neck tees in oversized and regular fits, made to be worn every day.{% endblock %}">
+  <meta property="og:url" content="{{ canonical_url }}">
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}"><meta name="twitter:card" content="summary_large_image">{% else %}<meta name="twitter:card" content="summary">{% endif %}
+  {% block robots %}{% endblock %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+</head>
+<body data-page="{% block page %}{% endblock %}" data-authenticated="{{ user.is_authenticated|yesno:'true,false' }}">
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% if announcement %}<p class="announcement">{{ announcement }}</p>{% endif %}
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.4-7.5-10A4.5 4.5 0 0 1 12 7.6a4.5 4.5 0 0 1 7.5 2.9c0 5.6-7.5 10-7.5 10Z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20.5c1.2-3.6 4.3-5.5 8-5.5s6.8 1.9 8 5.5"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l-1 12.500H6L5 8Z"/><path d="M9 8V6.500a3 3 0 0 1 6 0V8"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-5.500v-5.500h-5V20H4v-9Z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 5 6v5.500c0 4.3 2.9 7.6 7 9 4.1-1.4 7-4.7 7-9V6l-7-2.500Z"/><path d="m9 12 2.2 2.200L15.2 10"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path d="M3 6.500h11v9.500H3z"/><path d="M14 10h3.800L21 13.200V16h-7"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></symbol>
+    <symbol id="i-tee" viewBox="0 0 24 24"><path d="M8.5 4 3.5 6.500l2 4 2.5-1V20h8V9.500l2.5 1 2-4L15.5 4a3.5 3.5 0 0 1-7 0Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
+  <header class="site-header" data-header>
+    <div class="wrap bar">
+      <a class="logo" href="{% url 'home' %}" aria-label="Eunice Wears, home">{% include "_logo.html" %}</a>
+      <form class="search" action="{% url 'shop' %}" role="search" data-search>
+        <label class="visually-hidden" for="site-search">Search products</label>
+        <svg class="icon search__icon" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="site-search" name="q" type="search" placeholder="Search tees, colours, sizes" autocomplete="off" aria-controls="search-suggestions">
+        <ul class="search__suggestions" id="search-suggestions" data-suggestions hidden></ul>
+      </form>
+      <div class="bar__actions">
+        <a class="icon-btn" href="{% if user.is_authenticated %}{% url 'wishlist' %}{% else %}{% url 'login' %}?next=/wishlist/{% endif %}" aria-label="Wishlist"><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg></a>
+        <a class="icon-btn" href="{% if user.is_authenticated %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}" aria-label="{% if user.is_authenticated %}Your account{% else %}Sign in{% endif %}"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg></a>
+        <a class="icon-btn icon-btn--cart" href="{% url 'cart' %}" aria-label="Cart"><svg class="icon" aria-hidden="true"><use href="#i-bag"/></svg><span class="count" data-cart-count>{{ cart_count }}</span></a>
+      </div>
+    </div>
+    <nav class="wrap subnav" aria-label="Main">
+      <a href="{% url 'shop' %}">Shop all</a>
+      <a href="{% url 'shop' %}?flag=new">New arrivals</a>
+      <a href="{% url 'shop' %}?fit=oversized">Oversized</a>
+      <a href="{% url 'shop' %}?fit=regular">Regular</a>
+      <a href="/about/">About</a>
+      <span class="subnav__spacer"></span>
+      {% if user.is_staff %}<a href="{% url 'dashboard' %}">Dashboard</a>{% endif %}
+      {% if user.is_authenticated %}<button class="link-button" type="button" data-logout>Sign out</button>
+      {% else %}<a href="{% url 'register' %}">Create account</a>{% endif %}
+    </nav>
+  </header>
+
+  <main id="main">{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__grid">
+      <div>
+        <p class="logo">{% include "_logo.html" %}</p>
+        <p class="muted">Plain tees, cut properly. Made in Nigeria.</p>
+      </div>
+      <nav aria-label="Help">
+        <a href="/about/">About</a><a href="/faq/">FAQ</a><a href="/shipping/">Shipping</a>
+        <a href="/returns/">Returns</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a>
+      </nav>
+      <form class="form newsletter" data-form="newsletter" novalidate>
+        <label for="newsletter-email">New colours and restocks, by email</label>
+        <div class="newsletter__row">
+          <input id="newsletter-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          <button class="btn" type="submit" data-busy-label="Joining">Join the list</button>
+        </div>
+        <p class="field-error" data-error-for="email"></p>
+        <p class="hint">Unsubscribe any time from the link in every email.</p>
+      </form>
+    </div>
+    <div class="wrap"><p class="muted small">&copy; {% now "Y" %} Eunice Wears</p></div>
+  </footer>
+
+  <nav class="tabbar" aria-label="Quick links">
+    <a href="{% url 'home' %}" {% if request.path == '/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg>Home</a>
+    <a href="{% url 'shop' %}" {% if request.path == '/shop/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Shop</a>
+    <a href="{% if user.is_authenticated %}{% url 'wishlist' %}{% else %}{% url 'login' %}?next=/wishlist/{% endif %}" {% if request.path == '/wishlist/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg>Wishlist</a>
+    <a href="{% url 'cart' %}" {% if request.path == '/cart/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-bag"/></svg>Cart<span class="count" data-cart-count>{{ cart_count }}</span></a>
+    <a href="{% if user.is_authenticated %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}" {% if request.path == '/account/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg>Account</a>
+  </nav>
+
+  <dialog class="drawer" data-cart-drawer aria-labelledby="drawer-h">
+    <header class="drawer__head">
+      <h2 id="drawer-h">Added to your cart</h2>
+      <button class="icon-btn" type="button" data-drawer-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </header>
+    <ul class="drawer__lines" data-drawer-lines></ul>
+    <footer class="drawer__foot">
+      <dl class="totals"><div class="totals__grand"><dt>Subtotal</dt><dd data-drawer-subtotal></dd></div></dl>
+      <p class="muted small">Delivery is worked out at checkout.</p>
+      <a class="btn btn--block" href="{% url 'checkout' %}">Checkout</a>
+      <a class="btn btn--ghost btn--block" href="{% url 'cart' %}">View cart</a>
+    </footer>
+  </dialog>
+
+  <div class="toasts" aria-live="polite" data-toasts></div>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

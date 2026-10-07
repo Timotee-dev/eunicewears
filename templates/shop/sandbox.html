@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Test payment | Eunice Wears{% endblock %}
+{% block page %}sandbox{% endblock %}
+{% block content %}
+<section class="auth"><div class="auth__panel" data-reference="{{ reference }}">
+  <h1>Test payment</h1>
+  <p class="notice">Development sandbox. No money moves. This page stands in for Paystack because no Paystack key is set; it never exists in production.</p>
+  <div class="actions">
+    <button class="btn" type="button" data-outcome="success">Approve test payment</button>
+    <button class="btn btn--ghost" type="button" data-outcome="failed">Decline</button>
+  </div>
+</div></section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/store.js' %}" defer></script>{% endblock %}
