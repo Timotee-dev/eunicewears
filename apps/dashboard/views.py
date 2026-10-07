@@ -29,6 +29,23 @@ from .serializers import (
 )
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+# Swatch colours for common colour names, so the owner never has to pick one by hand.
+COLOUR_HEX = {
+    "black": "#111111", "white": "#FFFFFF", "cream": "#EFE3D3", "brown": "#6B4226", "chocolate": "#4A2C18",
+    "grey": "#8A8A8A", "gray": "#8A8A8A", "ash": "#B8B8B8", "navy": "#1F2A44", "blue": "#2F5DA8", "sky blue": "#8EC5E8",
+    "red": "#B3261E", "wine": "#6A1B2A", "burgundy": "#6A1B2A", "green": "#2F6B45", "olive": "#5B5F3A",
+    "pink": "#E8A0B4", "beige": "#D9C5A0", "khaki": "#B9A66B", "yellow": "#E6C229", "mustard": "#C99A1E",
+    "orange": "#D9772B", "purple": "#6B4A8A", "lilac": "#B9A3D6", "nude": "#D8B49A", "tan": "#B88A5E",
+}
+
+
+class QuickSizesSerializer(serializers.Serializer):
+    fit = serializers.ChoiceField(choices=["oversized", "regular", ""], allow_blank=True, default="")
+    sizes = serializers.ListField(child=serializers.CharField(max_length=10), min_length=1, max_length=12)
+    colors = serializers.ListField(child=serializers.CharField(max_length=40), min_length=1, max_length=12)
+    quantity = serializers.IntegerField(min_value=0, max_value=100000)
+
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
@@ -101,6 +118,34 @@ class ProductViewSet(viewsets.ModelViewSet):
         instance.archived_at, instance.is_published = timezone.now(), False
         instance.save(update_fields=["archived_at", "is_published", "updated_at"])
         audit.record("product.archived", request=self.request, obj=instance)
+
+    @action(detail=True, methods=["post"], url_path="sizes")
+    def quick_sizes(self, request, pk=None) -> Response:
+        """Add every size in every colour in one go. A combination that already exists just gets the quantity added."""
+        product = self.get_object()
+        data = QuickSizesSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        d = data.validated_data
+        sizes = list(dict.fromkeys(s.strip().upper() for s in d["sizes"] if s.strip()))
+        colors = list(dict.fromkeys(c.strip().title() for c in d["colors"] if c.strip()))
+        if not sizes or not colors:
+            raise serializers.ValidationError("Choose at least one size and one colour.")
+        for color in colors:
+            for size in sizes:
+                variant = product.variants.filter(fit=d["fit"], size__iexact=size, color__iexact=color).first()
+                if variant is None:
+                    base = f"P{product.pk}-{(d['fit'][:3] or 'ONE')}-{color.replace(' ', '')[:4]}-{size}".upper()
+                    sku, n = base, 2
+                    while ProductVariant.objects.filter(sku=sku).exists():
+                        sku, n = f"{base}-{n}", n + 1
+                    variant = ProductVariant.objects.create(
+                        product=product, fit=d["fit"], size=size, color=color, sku=sku,
+                        color_hex=COLOUR_HEX.get(color.lower(), "#C9B8A3"))
+                if d["quantity"]:
+                    adjust_stock(variant.pk, d["quantity"], InventoryTransaction.Reason.RESTOCK, actor=request.user, note="Added from the product page")
+        audit.record("product.sizes_added", request=request, obj=product,
+                     changes={"fit": d["fit"], "sizes": sizes, "colors": colors, "quantity": d["quantity"]})
+        return Response(AdminProductSerializer(self.get_queryset().get(pk=product.pk), context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="images")
     def upload_image(self, request, pk=None) -> Response:

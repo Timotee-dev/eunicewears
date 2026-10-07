@@ -1,0 +1,18 @@
+<div class="field"><label for="{{ prefix }}fit">Fit</label>
+  <select id="{{ prefix }}fit" name="fit"><option value="oversized">Oversized</option><option value="regular">Regular</option><option value="">No fit (one cut)</option></select></div>
+<fieldset class="options">
+  <legend>Sizes you have</legend>
+  <div class="options__row">
+    <label class="chip"><input type="checkbox" name="size_opt" value="S" checked> S</label>
+    <label class="chip"><input type="checkbox" name="size_opt" value="M" checked> M</label>
+    <label class="chip"><input type="checkbox" name="size_opt" value="L" checked> L</label>
+    <label class="chip"><input type="checkbox" name="size_opt" value="XL" checked> XL</label>
+    <label class="chip"><input type="checkbox" name="size_opt" value="XXL"> XXL</label>
+  </div>
+</fieldset>
+<div class="field"><label for="{{ prefix }}colors">Colours <span class="muted">(separate with commas)</span></label>
+  <input id="{{ prefix }}colors" name="colors" placeholder="Black, White, Brown" required>
+  <p class="field-error" data-error-for="colors"></p></div>
+<div class="field"><label for="{{ prefix }}quantity">How many of each size and colour</label>
+  <input id="{{ prefix }}quantity" name="quantity" type="number" min="0" value="10" required>
+  <p class="hint">Example: 3 colours in 4 sizes at 10 each is 120 tees. You can change any single one afterwards.</p></div>

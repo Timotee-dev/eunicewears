@@ -53,3 +53,8 @@ doc(extra.ContentItemView, "Admin", put=dict(request=OBJ, responses=OBJ))
 doc(catalog.HomeView, "Products", get=dict(responses=OBJ, summary="Home page shelves: up to ten owner-chosen products per category"))
 doc(extra.HomePicksView, "Admin", get=dict(responses=OBJ, summary="Home page picks and the products available to choose from"))
 doc(extra.HomePicksCategoryView, "Admin", put=dict(request=extra.HomePicksSerializer, responses=OBJ, summary="Replace one category's home page picks (max 10)"))
+
+from drf_spectacular.utils import extend_schema as _es  # noqa: E402
+
+_es(request=dash.QuickSizesSerializer, responses=dash.AdminProductSerializer, tags=["Admin"],
+    summary="Add sizes and colours with stock in one step")(dash.ProductViewSet.quick_sizes)

@@ -2,24 +2,39 @@
 {% block content %}
 <nav class="crumbs"><a href="{% url 'dashboard-products' %}">Products</a> / <span>{% if pk %}Edit{% else %}New{% endif %}</span></nav>
 <h1 data-heading>{% if pk %}Edit product{% else %}Add product{% endif %}</h1>
+{% if not pk %}<p class="muted">Fill this in once and press Save. The product goes straight into the shop, ready to buy.</p>{% endif %}
 <div class="dash__cols" data-product-id="{{ pk|default:'' }}">
-  <section>
-    <h2>Details</h2>
+  <section {% if not pk %}class="dash__wide product-new"{% endif %}>
+    <h2>{% if pk %}Details{% else %}1. The product{% endif %}</h2>
     <form class="form" data-form="product" novalidate>
       <p class="form-error" role="alert" data-form-error hidden></p>
-      <div class="field"><label for="name">Name</label><input id="name" name="name" required><p class="field-error" data-error-for="name"></p></div>
-      <div class="field"><label for="category">Category</label><select id="category" name="category" required></select><p class="field-error" data-error-for="category"></p></div>
+      <div class="field"><label for="name">Name</label><input id="name" name="name" placeholder="Oversized Tee" required><p class="field-error" data-error-for="name"></p></div>
       <div class="field-row">
-        <div class="field"><label for="price">Price (&#8358;)</label><input id="price" name="price" type="number" min="1" step="0.01" required><p class="field-error" data-error-for="price"></p></div>
-        <div class="field"><label for="discount_price">Sale price (&#8358;) <span class="muted">(optional)</span></label><input id="discount_price" name="discount_price" type="number" min="1" step="0.01"><p class="field-error" data-error-for="discount_price"></p></div>
+        <div class="field"><label for="price">Price (&#8358;)</label><input id="price" name="price" type="number" min="1" step="0.01" placeholder="12000" required><p class="field-error" data-error-for="price"></p></div>
+        <div class="field"><label for="category">Category</label><select id="category" name="category" required></select><p class="field-error" data-error-for="category"></p></div>
       </div>
-      <div class="field"><label for="short_description">Short description</label><input id="short_description" name="short_description" maxlength="255"><p class="field-error" data-error-for="short_description"></p></div>
-      <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="4"></textarea></div>
-      <div class="field"><label for="materials">Materials</label><input id="materials" name="materials"></div>
-      <div class="field"><label for="care_instructions">Care instructions</label><textarea id="care_instructions" name="care_instructions" rows="2"></textarea></div>
-      <label class="check"><input type="checkbox" name="is_published"> Published (visible in the shop)</label>
-      <label class="check"><input type="checkbox" name="is_new_arrival"> New arrival</label>
-      <label class="check"><input type="checkbox" name="is_best_seller"> Best seller</label>
+      {% if not pk %}
+      <h2>2. Sizes, colours and stock</h2>
+      {% include "dashboard/_size_fields.html" with prefix="n_" %}
+      <h2>3. Photos</h2>
+      <div class="field"><label for="photos">Choose photos <span class="muted">(you can pick several; the first is the main one)</span></label>
+        <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+        <p class="hint">JPG, PNG or WebP, under 5 MB each.</p></div>
+      {% endif %}
+      <details class="disclosure">
+        <summary>More options (description, sale price, labels)</summary>
+        <div class="form">
+          <div class="field"><label for="short_description">Short description</label><input id="short_description" name="short_description" maxlength="255"><p class="field-error" data-error-for="short_description"></p></div>
+          <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="4"></textarea></div>
+          <div class="field"><label for="discount_price">Sale price (&#8358;) <span class="muted">(optional)</span></label><input id="discount_price" name="discount_price" type="number" min="1" step="0.01"><p class="field-error" data-error-for="discount_price"></p></div>
+          <div class="field"><label for="materials">Materials</label><input id="materials" name="materials"></div>
+          <div class="field"><label for="care_instructions">Care instructions</label><textarea id="care_instructions" name="care_instructions" rows="2"></textarea></div>
+          <label class="check"><input type="checkbox" name="is_new_arrival"> Mark as a new arrival</label>
+          <label class="check"><input type="checkbox" name="is_best_seller"> Mark as a best seller</label>
+        </div>
+      </details>
+      <label class="check"><input type="checkbox" name="is_published" {% if not pk %}checked{% endif %}> Show in the shop</label>
+      <p class="muted" data-progress aria-live="polite" hidden></p>
       <div class="actions"><button class="btn" type="submit" data-busy-label="Saving">Save product</button>
       <button class="btn btn--ghost" type="button" data-archive hidden>Archive product</button></div>
     </form>
@@ -27,23 +42,21 @@
   <section data-after-create hidden>
     <h2>Photos</h2>
     <ul class="thumbs" data-images></ul>
-    <form class="form" data-form="image"><div class="field"><label for="image">Add a photo <span class="muted">(JPG, PNG or WebP, under 5 MB)</span></label><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" required><p class="field-error" data-error-for="image"></p></div>
-      <button class="btn btn--ghost" type="submit" data-busy-label="Uploading">Upload photo</button></form>
+    <form class="form" data-form="image"><div class="field"><label for="image">Add photos <span class="muted">(JPG, PNG or WebP, under 5 MB each)</span></label><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" multiple required><p class="field-error" data-error-for="image"></p></div>
+      <button class="btn btn--ghost" type="submit" data-busy-label="Uploading">Upload</button></form>
   </section>
   <section class="dash__wide" data-after-create hidden>
     <h2>Sizes, colours and stock</h2>
     <div data-variants></div>
-    <h3>Add a variant</h3>
-    <form class="form filters" data-form="variant" novalidate>
-      <p class="form-error" role="alert" data-form-error hidden></p>
-      <div class="field"><label for="v_fit">Fit</label><select id="v_fit" name="fit"><option value="oversized">Oversized</option><option value="regular">Regular</option><option value="">One fit</option></select></div>
-      <div class="field"><label for="v_size">Size</label><input id="v_size" name="size" required><p class="field-error" data-error-for="size"></p></div>
-      <div class="field"><label for="v_color">Colour</label><input id="v_color" name="color" required><p class="field-error" data-error-for="color"></p></div>
-      <div class="field"><label for="v_hex">Swatch</label><input id="v_hex" name="color_hex" type="color" value="#000000"></div>
-      <div class="field"><label for="v_sku">SKU</label><input id="v_sku" name="sku" required><p class="field-error" data-error-for="sku"></p></div>
-      <div class="field"><label for="v_stock">Opening stock</label><input id="v_stock" name="initial_stock" type="number" min="0" value="0"></div>
-      <button class="btn" type="submit" data-busy-label="Adding">Add variant</button>
-    </form>
+    <details class="disclosure">
+      <summary>Add more sizes or colours, or restock several at once</summary>
+      <form class="form product-new" data-form="sizes" novalidate>
+        <p class="form-error" role="alert" data-form-error hidden></p>
+        {% include "dashboard/_size_fields.html" with prefix="e_" %}
+        <p class="hint">A size and colour you already have simply gets this quantity added to its stock.</p>
+        <button class="btn" type="submit" data-busy-label="Adding">Add to stock</button>
+      </form>
+    </details>
   </section>
 </div>
 {% endblock %}

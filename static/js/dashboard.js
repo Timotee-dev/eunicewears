@@ -162,7 +162,7 @@
 
     function renderVariants(variants) {
       const host = $("[data-variants]");
-      if (!variants.length) { host.replaceChildren(empty("No variants yet. A product needs at least one size and colour before it can be bought.")); return; }
+      if (!variants.length) { host.replaceChildren(empty("No sizes yet, so the shop shows this as sold out. Open the box below, tick the sizes, type the colours and press Add to stock.")); return; }
       host.replaceChildren(table(["Fit", "Size", "Colour", "SKU", "Stock", "Add or remove stock", "On sale"], variants.map((v) => {
         const input = h("input", { type: "number", "aria-label": "Units to add (negative removes)", placeholder: "+10 or -2", class: "input--small" });
         const refresh = (updated) => renderVariants(variants.map((x) => (x.id === updated.id ? updated : x)));
@@ -179,6 +179,24 @@
       })));
     }
 
+    /* Read the simple "sizes, colours, quantity" fields from a form. */
+    function sizeChoices(source) {
+      const sizes = Array.from(source.querySelectorAll('input[name="size_opt"]:checked')).map((el) => el.value);
+      const colors = source.elements.colors.value.split(",").map((c) => c.trim()).filter(Boolean);
+      const problem = !sizes.length ? "Tick at least one size." : !colors.length ? "Type at least one colour, for example Black." : null;
+      return { problem, body: { fit: source.elements.fit.value, sizes, colors, quantity: parseInt(source.elements.quantity.value, 10) || 0 } };
+    }
+    async function uploadPhotos(productId, files, note) {
+      let failed = 0;
+      for (let i = 0; i < files.length; i += 1) {
+        if (note) note("Uploading photo " + (i + 1) + " of " + files.length + "\u2026");
+        const body = new FormData();
+        body.append("image", files[i]);
+        try { await api("/admin/products/" + productId + "/images/", { method: "POST", body }); } catch (error) { failed += 1; }
+      }
+      return failed;
+    }
+
     const showEditor = () => document.querySelectorAll("[data-after-create]").forEach((el) => { el.hidden = false; });
 
     api("/admin/categories/").then(async (categories) => {
@@ -188,26 +206,43 @@
     }).catch((error) => toast(error.message, "error"));
 
     bindForm(form, async (data) => {
-      const body = { ...data, category: Number(data.category), price: toKobo(data.price), discount_price: toKobo(data.discount_price) };
+      const body = {
+        name: data.name, category: Number(data.category), price: toKobo(data.price), discount_price: toKobo(data.discount_price),
+        short_description: data.short_description, description: data.description, materials: data.materials,
+        care_instructions: data.care_instructions, is_published: data.is_published, is_new_arrival: data.is_new_arrival, is_best_seller: data.is_best_seller,
+      };
       if (id) { fill(await api("/admin/products/" + id + "/", { method: "PATCH", body })); toast("Product saved."); return; }
+
+      // New product: details, then every size and colour with stock, then photos. One button does all three.
+      const choice = sizeChoices(form);
+      if (choice.problem) { throw new window.EW.ApiError(400, { error: { message: choice.problem } }); }
+      const progress = $("[data-progress]"), say = (text) => { progress.hidden = false; progress.textContent = text; };
+      say("Saving the product\u2026");
       const created = await api("/admin/products/", { method: "POST", body });
-      window.location.assign("/dashboard/products/" + created.id + "/");
+      id = String(created.id); // if a later step fails, pressing Save again updates this product instead of making a second one
+      try {
+        say("Adding sizes and stock\u2026");
+        await api("/admin/products/" + created.id + "/sizes/", { method: "POST", body: choice.body });
+        const failed = await uploadPhotos(created.id, Array.from(form.elements.photos.files), say);
+        if (failed) window.alert(failed + " photo(s) could not be uploaded. Use JPG, PNG or WebP under 5 MB. You can add them on the next page.");
+      } finally {
+        window.location.assign("/dashboard/products/" + created.id + "/");
+      }
     });
 
     bindForm($('[data-form="image"]'), async (data, imageForm) => {
-      const body = new FormData();
-      body.append("image", imageForm.elements.image.files[0]);
-      await api("/admin/products/" + id + "/images/", { method: "POST", body });
+      const failed = await uploadPhotos(id, Array.from(imageForm.elements.image.files));
       imageForm.reset();
       renderImages((await api("/admin/products/" + id + "/")).images);
-      toast("Photo uploaded.");
+      toast(failed ? failed + " photo(s) could not be uploaded. Use JPG, PNG or WebP under 5 MB." : "Photos uploaded.", failed ? "error" : undefined);
     });
 
-    bindForm($('[data-form="variant"]'), async (data, variantForm) => {
-      await api("/admin/variants/", { method: "POST", body: { ...data, product: Number(id), initial_stock: parseInt(data.initial_stock, 10) || 0 } });
-      variantForm.elements.size.value = ""; variantForm.elements.sku.value = ""; variantForm.elements.initial_stock.value = "0";
-      renderVariants((await api("/admin/products/" + id + "/")).variants);
-      toast("Variant added.");
+    bindForm($('[data-form="sizes"]'), async (data, sizesForm) => {
+      const choice = sizeChoices(sizesForm);
+      if (choice.problem) { throw new window.EW.ApiError(400, { error: { message: choice.problem } }); }
+      renderVariants((await api("/admin/products/" + id + "/sizes/", { method: "POST", body: choice.body })).variants);
+      sizesForm.elements.colors.value = "";
+      toast("Stock added.");
     });
 
     $("[data-archive]").addEventListener("click", (e) => {

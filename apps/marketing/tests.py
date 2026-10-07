@@ -271,3 +271,78 @@ class HomePicksTests(StoreTestCase):
         Product.objects.filter(pk=others[7].pk).update(is_published=False)
         self.assertEqual(shelf(), [others[3].pk, self.product.pk])
         self.assertEqual(self.client.get("/dashboard/home/").status_code, 302)
+
+
+class DeploymentTests(StoreTestCase):
+    def test_cloudinary_storage_uploads_and_builds_urls(self) -> None:
+        from django.core.files.base import ContentFile
+
+        from apps.core.storage import CloudinaryMediaStorage
+
+        storage = CloudinaryMediaStorage()
+        with patch("cloudinary.uploader.upload", return_value={"public_id": "eunice-wears/products/2026/10/black-tee-ab12cd34", "format": "jpg"}) as upload:
+            name = storage.save("products/2026/10/Black Tee!.JPG", ContentFile(b"x"))
+        self.assertEqual(name, "eunice-wears/products/2026/10/black-tee-ab12cd34.jpg")
+        self.assertEqual(upload.call_args.kwargs["folder"], "eunice-wears/products/2026/10")
+        self.assertTrue(upload.call_args.kwargs["public_id"].startswith("black-tee-"))
+        with patch.dict("os.environ", {"CLOUDINARY_URL": "cloudinary://1:2@demo"}):
+            import cloudinary
+            cloudinary.reset_config()
+            url = storage.url(name)
+        self.assertTrue(url.startswith("https://res.cloudinary.com/demo/image/upload/"), url)
+        self.assertTrue(url.endswith("/eunice-wears/products/2026/10/black-tee-ab12cd34.jpg"), url)
+        with patch("cloudinary.uploader.destroy") as destroy:
+            storage.delete(name)
+        destroy.assert_called_once_with("eunice-wears/products/2026/10/black-tee-ab12cd34", invalidate=True)
+
+    def test_setup_store_creates_the_owner_once(self) -> None:
+        from django.core.management import call_command
+
+        from apps.accounts.models import User
+
+        with patch.dict("os.environ", {"OWNER_EMAIL": "Owner@Shop.com", "OWNER_PASSWORD": "a-long-password-1"}):
+            call_command("setup_store", verbosity=0)
+            owner = User.objects.get(email="owner@shop.com")
+            self.assertEqual((owner.role, owner.email_verified), ("super_admin", True))
+        with patch.dict("os.environ", {"OWNER_EMAIL": "owner@shop.com", "OWNER_PASSWORD": "a-different-password"}):
+            call_command("setup_store", verbosity=0)
+        owner.refresh_from_db()
+        self.assertTrue(owner.check_password("a-long-password-1"))  # a redeploy never resets the password
+
+    def test_email_goes_through_brevo_over_https_when_a_key_is_set(self) -> None:
+        from apps.core.tasks import send_email
+
+        with override_settings(BREVO_API_KEY="xkeysib-test", DEFAULT_FROM_EMAIL="Eunice Wears <shop@example.com>"), \
+                patch("apps.core.tasks.requests.post") as post:
+            send_email("Hello", "plain", "<p>html</p>", "ada@example.com")
+        body = post.call_args.kwargs["json"]
+        self.assertEqual(post.call_args.args[0], "https://api.brevo.com/v3/smtp/email")
+        self.assertEqual((body["sender"], body["to"]), ({"name": "Eunice Wears", "email": "shop@example.com"}, [{"email": "ada@example.com"}]))
+        self.assertEqual(post.call_args.kwargs["headers"]["api-key"], "xkeysib-test")
+
+
+class QuickSizesTests(StoreTestCase):
+    def test_one_call_adds_every_size_and_colour_with_stock(self) -> None:
+        from apps.catalog.models import Product, ProductVariant
+
+        product = Product.objects.create(name="New Tee", category=self.product.category, price=1_000_000, is_published=True)
+        url = f"/api/admin/products/{product.pk}/sizes/"
+        body = {"fit": "oversized", "sizes": ["m", "L", "M"], "colors": ["black", " sky blue "], "quantity": 10}
+        self.client.force_authenticate(make_user("staff@example.com", Role.STAFF))
+        self.assertEqual(self.client.post(url, body, format="json").status_code, 403)
+        self.client.force_authenticate(make_user("admin@example.com", Role.ADMIN))
+        self.assertEqual(self.client.post(url, {**body, "sizes": []}, format="json").status_code, 400)
+
+        variants = self.client.post(url, body, format="json").json()["variants"]
+        self.assertEqual(sorted((v["size"], v["color"], v["stock"]) for v in variants),
+                         [("L", "Black", 10), ("L", "Sky Blue", 10), ("M", "Black", 10), ("M", "Sky Blue", 10)])
+        self.assertEqual(len({v["sku"] for v in variants}), 4)
+        self.assertEqual(ProductVariant.objects.get(product=product, size="M", color="Black").color_hex, "#111111")
+
+        # Sending it again restocks what exists and only creates what is new.
+        again = self.client.post(url, {**body, "sizes": ["M", "XL"], "colors": ["Black"], "quantity": 5}, format="json").json()["variants"]
+        stock = {(v["size"], v["color"]): v["stock"] for v in again}
+        self.assertEqual((len(again), stock[("M", "Black")], stock[("XL", "Black")], stock[("L", "Black")]), (5, 15, 5, 10))
+        shop = self.client.get(f"/api/products/{product.slug}/").json()
+        self.assertTrue(any(v["availability"] != "out" for v in shop["variants"]))  # no longer sold out
+        self.assertEqual(self.client.get("/dashboard/products/new/").status_code, 302)
