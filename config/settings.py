@@ -12,6 +12,7 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+# Render tells the service its own public hostname; trust it without extra configuration.
 RENDER_HOST = env("RENDER_EXTERNAL_HOSTNAME", default="")
 if RENDER_HOST:
     ALLOWED_HOSTS.append(RENDER_HOST)
@@ -76,6 +77,7 @@ TEMPLATES = [
 # SQLite locally, PostgreSQL in production via DATABASE_URL.
 if env("DATABASE_URL", default=""):
     DATABASES = {"default": env.db_url("DATABASE_URL")}
+    DATABASES["default"]["CONN_MAX_AGE"] = 60
 else:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
@@ -165,6 +167,7 @@ if EMAIL_HOST:
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Eunice Wears <hello@eunicewears.example>")
+# Brevo transactional email over HTTPS. Takes priority over SMTP when set.
 BREVO_API_KEY = env("BREVO_API_KEY", default="")
 
 # --- Payments -------------------------------------------------------------
@@ -182,6 +185,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Product photos go to Cloudinary whenever CLOUDINARY_URL is set (required on Render: its disk is temporary).
 CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
 STORAGES = {
     "default": {"BACKEND": "apps.core.storage.CloudinaryMediaStorage" if CLOUDINARY_URL

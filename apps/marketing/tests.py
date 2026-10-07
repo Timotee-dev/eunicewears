@@ -346,3 +346,56 @@ class QuickSizesTests(StoreTestCase):
         shop = self.client.get(f"/api/products/{product.slug}/").json()
         self.assertTrue(any(v["availability"] != "out" for v in shop["variants"]))  # no longer sold out
         self.assertEqual(self.client.get("/dashboard/products/new/").status_code, 302)
+
+    def test_delete_erases_unsold_products_and_only_hides_sold_ones(self) -> None:
+        from apps.catalog.models import Product
+
+        fresh = Product.objects.create(name="Mistake", category=self.product.category, price=1_000_000, is_published=True)
+        self.client.force_authenticate(make_user("boss@example.com", Role.ADMIN))
+        self.client.post(f"/api/admin/products/{fresh.pk}/sizes/", {"fit": "", "sizes": ["M"], "colors": ["Black"], "quantity": 4}, format="json")
+        self.client.force_authenticate(make_user("staff2@example.com", Role.STAFF))
+        self.assertEqual(self.client.delete(f"/api/admin/products/{fresh.pk}/").status_code, 403)
+        self.client.force_authenticate(make_user("admin2@example.com", Role.ADMIN))
+        gone = self.client.delete(f"/api/admin/products/{fresh.pk}/").json()
+        self.assertTrue(gone["deleted"])
+        self.assertFalse(Product.objects.filter(pk=fresh.pk).exists())
+
+        delivered_order(self.user, self.variant)  # self.product now appears in an order
+        kept = self.client.delete(f"/api/admin/products/{self.product.pk}/").json()
+        self.assertFalse(kept["deleted"])
+        self.product.refresh_from_db()
+        self.assertTrue(self.product.archived_at and not self.product.is_published)
+        self.assertEqual(self.client.get(f"/api/products/{self.product.slug}/").status_code, 404)  # out of the shop
+        self.assertNotIn(self.product.pk, [p["id"] for p in self.client.get("/api/admin/products/").json()["results"]])
+        services = self.client.get("/api/health/").json()["services"]
+        self.assertEqual(set(services), {"photos", "email", "payments"})
+
+    def test_big_photos_are_accepted_and_shrunk_and_junk_is_refused(self) -> None:
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        from apps.catalog.models import Product, ProductImage
+
+        product = Product.objects.create(name="Photo Tee", category=self.product.category, price=1_000_000)
+        self.client.force_authenticate(make_user("photo-admin@example.com", Role.ADMIN))
+        url = f"/api/admin/products/{product.pk}/images/"
+
+        raw = BytesIO()
+        Image.effect_noise((3000, 2250), 90).convert("RGB").save(raw, "PNG")  # noisy on purpose: a large file
+        self.assertGreater(raw.tell(), 9 * 1024 * 1024)
+        big = SimpleUploadedFile("camera shot.png", raw.getvalue(), content_type="image/png")
+        self.assertEqual(self.client.post(url, {"image": big}, format="multipart").status_code, 201)
+        stored = ProductImage.objects.get(product=product).image
+        with Image.open(stored) as saved:
+            self.assertEqual(max(saved.size), 2000)
+        self.assertLess(stored.size, 4 * 1024 * 1024)
+        stored.delete(save=False)
+
+        junk = SimpleUploadedFile("not-a-photo.jpg", b"hello", content_type="image/jpeg")
+        refused = self.client.post(url, {"image": junk}, format="multipart")
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn("could not be read", refused.json()["error"]["fields"]["image"][0])
+        too_big = SimpleUploadedFile("huge.jpg", b"0" * (20 * 1024 * 1024 + 1), content_type="image/jpeg")
+        self.assertEqual(self.client.post(url, {"image": too_big}, format="multipart").status_code, 400)

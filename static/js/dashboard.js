@@ -19,7 +19,7 @@
   function table(headers, rows) {
     return h("div", { class: "table-wrap" }, h("table", {},
       h("thead", {}, h("tr", {}, headers.map((t) => h("th", { scope: "col" }, t)))),
-      h("tbody", {}, rows.map((cells) => h("tr", {}, cells.map((c) => h("td", {}, c)))))));
+      h("tbody", {}, rows.map((cells) => h("tr", {}, cells.map((c, i) => h("td", { "data-label": headers[i] || "" }, c)))))));
   }
 
   function orderRows(orders) {
@@ -127,10 +127,29 @@
 
   /* ---------- products ---------- */
   if (page === "products") {
-    pagedList("/admin/products/", ["Product", "Category", "Price", "Stock", "Visibility"], (products) => products.map((p) => [
-      h("a", { href: "/dashboard/products/" + p.id + "/" }, p.name), p.category_name,
-      p.discount_price ? money(p.discount_price) + " (was " + money(p.price) + ")" : money(p.price),
-      String(p.total_stock), p.is_published ? "Published" : "Draft"]), "No products yet. Add your first one.");
+    pagedList("/admin/products/", ["Product", "Category", "Price", "Stock", "Shop", ""], (products) => products.map((p) => {
+      const row = [
+        h("a", { class: "prod", href: "/dashboard/products/" + p.id + "/" },
+          p.images.length ? h("img", { src: p.images[0].url, alt: "", width: 44, height: 55, loading: "lazy" }) : h("span", { class: "card__blank prod__blank", "aria-hidden": "true" }, "EW"),
+          h("span", {}, p.name)),
+        p.category_name,
+        p.discount_price ? money(p.discount_price) + " (was " + money(p.price) + ")" : money(p.price),
+        h("span", { class: p.total_stock ? "" : "stock-note--low" }, p.total_stock ? String(p.total_stock) : "0 (sold out)"),
+        badge(p.is_published ? "approved" : "pending", p.is_published ? "Showing" : "Hidden"),
+        h("div", { class: "actions" },
+          h("a", { class: "btn btn--ghost btn--small", href: "/dashboard/products/" + p.id + "/" }, "Edit"),
+          isAdmin ? h("button", { class: "btn btn--danger btn--small", type: "button", onclick: (e) => {
+            if (!window.confirm("Delete " + p.name + "? Its sizes, stock and photos are deleted too. This cannot be undone.")) return;
+            const button = e.currentTarget;
+            busy(button, async () => {
+              const result = await api("/admin/products/" + p.id + "/", { method: "DELETE" });
+              toast(result.message);
+              button.closest("tr").remove();
+            });
+          } }, "Delete") : null),
+      ];
+      return row;
+    }), "No products yet. Add your first one.");
   }
 
   if (page === "product") {
@@ -186,15 +205,34 @@
       const problem = !sizes.length ? "Tick at least one size." : !colors.length ? "Type at least one colour, for example Black." : null;
       return { problem, body: { fit: source.elements.fit.value, sizes, colors, quantity: parseInt(source.elements.quantity.value, 10) || 0 } };
     }
+    /* Phone photos are often 5 to 20 MB. Shrink them in the browser first so uploads are quick on mobile data;
+       the server shrinks again as a backstop and accepts originals up to 20 MB. */
+    async function shrink(file) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type) || !window.createImageBitmap) return file;
+      try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+        if (scale === 1 && file.size < 1500000) return file;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.86));
+        return blob ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
+      } catch (error) { return file; }
+    }
+    /* Returns a list of problems (empty when every photo went up), so the real reason can be shown. */
     async function uploadPhotos(productId, files, note) {
-      let failed = 0;
+      const problems = [];
       for (let i = 0; i < files.length; i += 1) {
         if (note) note("Uploading photo " + (i + 1) + " of " + files.length + "\u2026");
         const body = new FormData();
-        body.append("image", files[i]);
-        try { await api("/admin/products/" + productId + "/images/", { method: "POST", body }); } catch (error) { failed += 1; }
+        body.append("image", await shrink(files[i]));
+        try { await api("/admin/products/" + productId + "/images/", { method: "POST", body }); }
+        catch (error) { problems.push(files[i].name + ": " + ((error.fields && error.fields.image && error.fields.image[0]) || error.message)); }
       }
-      return failed;
+      return problems;
     }
 
     const showEditor = () => document.querySelectorAll("[data-after-create]").forEach((el) => { el.hidden = false; });
@@ -223,18 +261,18 @@
       try {
         say("Adding sizes and stock\u2026");
         await api("/admin/products/" + created.id + "/sizes/", { method: "POST", body: choice.body });
-        const failed = await uploadPhotos(created.id, Array.from(form.elements.photos.files), say);
-        if (failed) window.alert(failed + " photo(s) could not be uploaded. Use JPG, PNG or WebP under 5 MB. You can add them on the next page.");
+        const problems = await uploadPhotos(created.id, Array.from(form.elements.photos.files), say);
+        if (problems.length) window.alert("The product was saved, but these photos did not upload:\n\n" + problems.join("\n") + "\n\nYou can add photos again on the next page.");
       } finally {
         window.location.assign("/dashboard/products/" + created.id + "/");
       }
     });
 
     bindForm($('[data-form="image"]'), async (data, imageForm) => {
-      const failed = await uploadPhotos(id, Array.from(imageForm.elements.image.files));
+      const problems = await uploadPhotos(id, Array.from(imageForm.elements.image.files));
       imageForm.reset();
       renderImages((await api("/admin/products/" + id + "/")).images);
-      toast(failed ? failed + " photo(s) could not be uploaded. Use JPG, PNG or WebP under 5 MB." : "Photos uploaded.", failed ? "error" : undefined);
+      if (problems.length) window.alert("These photos did not upload:\n\n" + problems.join("\n")); else toast("Photos uploaded.");
     });
 
     bindForm($('[data-form="sizes"]'), async (data, sizesForm) => {
@@ -246,8 +284,12 @@
     });
 
     $("[data-archive]").addEventListener("click", (e) => {
-      if (!window.confirm("Archive this product? It leaves the shop but stays in past orders.")) return;
-      busy(e.currentTarget, async () => { await api("/admin/products/" + id + "/", { method: "DELETE" }); window.location.assign("/dashboard/products/"); });
+      if (!window.confirm("Delete this product? Its sizes, stock and photos are deleted too. This cannot be undone.")) return;
+      busy(e.currentTarget, async () => {
+        const result = await api("/admin/products/" + id + "/", { method: "DELETE" });
+        window.alert(result.message);
+        window.location.assign("/dashboard/products/");
+      });
     });
   }
 

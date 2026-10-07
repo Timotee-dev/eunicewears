@@ -1,3 +1,5 @@
+# Render blueprint: one web service and one PostgreSQL database.
+# New > Blueprint on render.com, pick this repository, then fill in the values marked "sync: false".
 databases:
   - name: eunice-wears-db
     plan: free
@@ -10,7 +12,7 @@ services:
     runtime: python
     plan: free
     buildCommand: bash build.sh
-    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 120
     healthCheckPath: /api/health/
     envVars:
       - key: PYTHON_VERSION

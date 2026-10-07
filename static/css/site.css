@@ -804,3 +804,46 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
 .chip { display: inline-flex; align-items: center; gap: 0.45rem; min-height: var(--tap); padding: 0 1rem; border: 1.5px solid var(--line); border-radius: 999px; background: var(--surface); font-weight: 500; font-size: var(--step-0); cursor: pointer; transition: border-color 0.15s, background-color 0.15s; }
 .chip input { accent-color: var(--brown); width: 1.05rem; height: 1.05rem; }
 .chip:has(input:checked) { border-color: var(--brown); background: var(--cream); }
+
+/* Dashboard: delete buttons, product rows, and a layout that works on phones */
+.btn--danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+.btn--danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+.checks { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); }
+.prod { display: inline-flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+.prod img, .prod__blank { width: 2.75rem; height: 3.4rem; object-fit: cover; border-radius: 8px; flex: none; font-size: 0.8rem; }
+.dash__main { overflow-wrap: anywhere; }
+.dash__main img { max-width: 100%; }
+@media (max-width: 56rem) {
+  .dash__side { flex-direction: column; align-items: stretch; gap: var(--space-1); padding: var(--space-1) var(--space-2); position: sticky; top: 0; z-index: 10; height: auto; }
+  .dash__side nav { display: flex; flex-wrap: nowrap; gap: 0.25rem; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--space-2)); padding-inline: var(--space-2); }
+  .dash__side nav::-webkit-scrollbar { display: none; }
+  .dash__side nav a, .dash__side .link-button { white-space: nowrap; padding: 0.5rem 0.8rem; flex: none; }
+  .dash__side nav a:hover { padding-left: 0.8rem; }
+  .dash__main { padding: var(--space-2) var(--space-2) var(--space-5); }
+  .dash__head { flex-wrap: wrap; }
+  .dash__cols > section, .dash__main > section { padding: var(--space-2); }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 44rem) {
+  /* Tables become a stack of cards: each row is a card, each cell a labelled line. */
+  .dash .table-wrap { overflow: visible; }
+  .dash .table-wrap table, .dash .table-wrap tbody { display: block; }
+  .dash .table-wrap thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .dash .table-wrap tr { display: grid; gap: 0.45rem; padding: var(--space-2); margin-bottom: var(--space-2); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+  .dash .table-wrap td { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); border: 0; padding: 0; text-align: right; min-width: 0; }
+  .dash .table-wrap td::before { content: attr(data-label); flex: none; font-size: var(--step--1); font-weight: 600; color: var(--stone); text-align: left; }
+  .dash .table-wrap td[data-label=""]::before { content: none; }
+  .dash .table-wrap td:first-child { font-weight: 600; font-size: var(--step-0); justify-content: flex-start; text-align: left; }
+  .dash .table-wrap td:first-child::before { content: none; }
+  .dash .table-wrap td .actions, .dash .table-wrap td .stepper { justify-content: flex-end; flex-wrap: wrap; margin: 0; }
+  .dash .table-wrap td[data-label=""] { justify-content: stretch; }
+  .dash .table-wrap td[data-label=""] .actions { width: 100%; }
+  .dash .table-wrap td[data-label=""] .actions > * { flex: 1; }
+  .input--small { width: 5.5rem !important; }
+  .dash .filters .field { flex: 1 1 100%; min-width: 0; }
+  .dash .actions .btn { flex: 1 1 auto; }
+  .tile strong { font-size: var(--step-1); }
+  .editor__row .field { flex: 1 1 100%; }
+  .slots { grid-template-columns: 1fr; }
+  .chart svg { min-width: 0; }
+}

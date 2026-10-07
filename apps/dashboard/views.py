@@ -1,7 +1,10 @@
 """Owner dashboard API. Every endpoint states its minimum role; the server enforces it."""
+import logging
 from datetime import timedelta
 
-from django.db.models import Count, F, Q, Sum
+from django.core.files.storage import default_storage
+from django.db import transaction
+from django.db.models import Count, F, ProtectedError, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, mixins, serializers, viewsets
@@ -28,7 +31,39 @@ from .serializers import (
     StockAdjustSerializer,
 )
 
-MAX_IMAGE_BYTES = 5 * 1024 * 1024
+logger = logging.getLogger("eunice.dashboard")
+
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_SIDE = 2000  # pixels; plenty for a product page, and keeps stored photos far below storage limits
+
+
+def prepare_photo(file):
+    """Check the upload really is an image, turn phone photos the right way up, and shrink big ones.
+    A 20 MB camera photo comes out at a few hundred KB, so the photo store never refuses it for size."""
+    from io import BytesIO
+
+    from django.core.files.base import ContentFile
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    try:
+        image = Image.open(file)
+        image.draft("RGB", (MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))  # lets JPEGs decode small: low memory on a small server
+        image = ImageOps.exif_transpose(image)
+        has_alpha = image.mode in ("RGBA", "LA", "P") and "transparency" in (image.info or {}) or image.mode in ("RGBA", "LA")
+        image = image.convert("RGBA" if has_alpha else "RGB")
+        image.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
+        out = BytesIO()
+        if has_alpha:
+            image.save(out, "WEBP", quality=88)
+            extension = "webp"
+        else:
+            image.save(out, "JPEG", quality=86, optimize=True, progressive=True)
+            extension = "jpg"
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise serializers.ValidationError({"image": ["That file could not be read as a photo. Use a JPG, PNG or WebP image."]})
+    stem = (getattr(file, "name", "") or "photo").rsplit(".", 1)[0][:60] or "photo"
+    return ContentFile(out.getvalue(), name=f"{stem}.{extension}")
+
 
 # Swatch colours for common colour names, so the owner never has to pick one by hand.
 COLOUR_HEX = {
@@ -113,11 +148,32 @@ class ProductViewSet(viewsets.ModelViewSet):
         audit.record("product.updated", request=self.request, obj=serializer.save(),
                      changes={k: str(v) for k, v in serializer.validated_data.items()})
 
-    def perform_destroy(self, instance: Product) -> None:
-        # Archive, never delete: past orders still point at this product.
-        instance.archived_at, instance.is_published = timezone.now(), False
-        instance.save(update_fields=["archived_at", "is_published", "updated_at"])
-        audit.record("product.archived", request=self.request, obj=instance)
+    def destroy(self, request, *args, **kwargs) -> Response:
+        """Delete the product, its sizes and its photos. A product that appears in an order cannot be erased
+        (receipts and order history depend on it), so it is taken out of the shop and hidden instead."""
+        product = self.get_object()
+        name, photos = product.name, [image.image.name for image in product.images.all() if image.image]
+        sold = OrderItem.objects.filter(variant__product=product).exists()
+        try:
+            if sold:
+                raise ProtectedError("Product appears in orders.", set())
+            with transaction.atomic():
+                audit.record("product.deleted", request=request, obj=product)
+                # The stock history only describes this product; it goes with it.
+                InventoryTransaction.objects.filter(variant__product=product).delete()
+                product.delete()
+        except ProtectedError:
+            product.archived_at, product.is_published = timezone.now(), False
+            product.save(update_fields=["archived_at", "is_published", "updated_at"])
+            audit.record("product.archived", request=request, obj=product)
+            return Response({"deleted": False, "message": f"{name} has been sold before, so it was removed from the shop "
+                             "and hidden from this list. Past orders still show it."})
+        for photo in photos:  # tidy the stored files too; a failure here must not undo the delete
+            try:
+                default_storage.delete(photo)
+            except Exception:
+                pass
+        return Response({"deleted": True, "message": f"{name} was deleted."})
 
     @action(detail=True, methods=["post"], url_path="sizes")
     def quick_sizes(self, request, pk=None) -> Response:
@@ -154,12 +210,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         if file is None:
             raise serializers.ValidationError({"image": ["Choose an image to upload."]})
         if file.size > MAX_IMAGE_BYTES or file.content_type not in IMAGE_TYPES:
-            raise serializers.ValidationError({"image": ["Use a JPG, PNG or WebP image under 5 MB."]})
-        field = serializers.ImageField()  # Pillow confirms it really is an image
-        image = ProductImage.objects.create(
-            product=product, image=field.run_validation(file), alt=request.data.get("alt", "")[:160] or product.name,
-            position=product.images.count(),
-        )
+            raise serializers.ValidationError({"image": ["Use a JPG, PNG or WebP image under 20 MB."]})
+        photo = prepare_photo(file)
+        try:
+            image = ProductImage.objects.create(
+                product=product, image=photo, alt=request.data.get("alt", "")[:160] or product.name,
+                position=product.images.count(),
+            )
+        except serializers.ValidationError:
+            raise
+        except Exception as exc:  # the photo store (Cloudinary) refused or is misconfigured: say so plainly
+            logger.exception("photo_store_failed product=%s", product.pk)
+            raise serializers.ValidationError({"image": [f"The photo store did not accept the upload ({str(exc)[:140]}). "
+                                                         "Check the CLOUDINARY_URL value on Render."]})
         return Response(ImageSerializer(image).data, status=201)
 
     @action(detail=True, methods=["post"], url_path="images/reorder")

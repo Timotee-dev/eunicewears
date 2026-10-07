@@ -7,6 +7,19 @@
     <p class="muted">{{ user.email }}</p>
   </header>
 
+  {% if user.is_staff %}
+  <aside class="owner-banner" aria-label="Store management">
+    <div>
+      <h2>You manage this store</h2>
+      <p>Add products, update stock, handle orders and choose what shows on the home page from the dashboard.</p>
+    </div>
+    <div class="actions">
+      <a class="btn btn--light" href="{% url 'dashboard' %}">Open dashboard</a>
+      <a class="btn btn--outline-light" href="{% url 'dashboard-product-new' %}">Add a product</a>
+    </div>
+  </aside>
+  {% endif %}
+
   <div class="account__grid">
     <section aria-labelledby="profile-h">
       <h2 id="profile-h">Profile</h2>

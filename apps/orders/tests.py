@@ -219,8 +219,8 @@ class DashboardTests(StoreTestCase):
         self.assertEqual(ProductVariant.objects.get(pk=variant["id"]).stock, 5)  # not writable directly
         self.assertEqual(self.client.post(f"/api/admin/variants/{variant['id']}/stock/", {"delta": -9}, format="json").status_code, 409)
         self.assertEqual(self.client.post(f"/api/admin/variants/{variant['id']}/stock/", {"delta": -2, "note": "damaged"}, format="json").json()["stock"], 3)
-        self.assertEqual(self.client.delete(f"/api/admin/products/{product['id']}/").status_code, 204)
-        self.assertIsNotNone(Product.objects.get(pk=product["id"]).archived_at)  # archived, not deleted
+        self.assertTrue(self.client.delete(f"/api/admin/products/{product['id']}/").json()["deleted"])
+        self.assertFalse(Product.objects.filter(pk=product["id"]).exists())  # never sold, so really deleted, stock history included
 
         order = Order.objects.create(user=self.user, email=self.user.email, phone="0801", shipping_address={}, shipping_method="Lagos delivery",
                                      number="EW-2026-000099", status=OrderStatus.PAID, payment_status=PaymentStatus.SUCCESSFUL, total=1_000_000)

@@ -281,7 +281,9 @@ def expire_unpaid(older_than_minutes: int = 60) -> int:
     return count
 
 
-def tidy_unpaid():
+def tidy_unpaid() -> None:
+    """Housekeeping without a cron job: called when someone checks out or the owner opens the dashboard.
+    Failures here are logged and never block the request that triggered it."""
     try:
         with transaction.atomic():
             expire_unpaid(60)

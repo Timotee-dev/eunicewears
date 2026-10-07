@@ -46,6 +46,7 @@
         <ul class="search__suggestions" id="search-suggestions" data-suggestions hidden></ul>
       </form>
       <div class="bar__actions">
+        {% if user.is_staff %}<a class="btn btn--small bar__dash" href="{% url 'dashboard' %}"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Dashboard</a>{% endif %}
         <a class="icon-btn" href="{% if user.is_authenticated %}{% url 'wishlist' %}{% else %}{% url 'login' %}?next=/wishlist/{% endif %}" aria-label="Wishlist"><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg></a>
         <a class="icon-btn" href="{% if user.is_authenticated %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}" aria-label="{% if user.is_authenticated %}Your account{% else %}Sign in{% endif %}"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg></a>
         <a class="icon-btn icon-btn--cart" href="{% url 'cart' %}" aria-label="Cart"><svg class="icon" aria-hidden="true"><use href="#i-bag"/></svg><span class="count" data-cart-count>{{ cart_count }}</span></a>
@@ -58,7 +59,6 @@
       <a href="{% url 'shop' %}?fit=regular">Regular</a>
       <a href="/about/">About</a>
       <span class="subnav__spacer"></span>
-      {% if user.is_staff %}<a href="{% url 'dashboard' %}">Dashboard</a>{% endif %}
       {% if user.is_authenticated %}<button class="link-button" type="button" data-logout>Sign out</button>
       {% else %}<a href="{% url 'register' %}">Create account</a>{% endif %}
     </nav>

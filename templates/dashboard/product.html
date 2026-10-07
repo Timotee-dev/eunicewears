@@ -19,30 +19,32 @@
       <h2>3. Photos</h2>
       <div class="field"><label for="photos">Choose photos <span class="muted">(you can pick several; the first is the main one)</span></label>
         <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-        <p class="hint">JPG, PNG or WebP, under 5 MB each.</p></div>
+        <p class="hint">JPG, PNG or WebP. Large phone photos are made smaller automatically before upload.</p></div>
       {% endif %}
       <details class="disclosure">
-        <summary>More options (description, sale price, labels)</summary>
+        <summary>More options (description, sale price, materials)</summary>
         <div class="form">
           <div class="field"><label for="short_description">Short description</label><input id="short_description" name="short_description" maxlength="255"><p class="field-error" data-error-for="short_description"></p></div>
           <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="4"></textarea></div>
           <div class="field"><label for="discount_price">Sale price (&#8358;) <span class="muted">(optional)</span></label><input id="discount_price" name="discount_price" type="number" min="1" step="0.01"><p class="field-error" data-error-for="discount_price"></p></div>
           <div class="field"><label for="materials">Materials</label><input id="materials" name="materials"></div>
           <div class="field"><label for="care_instructions">Care instructions</label><textarea id="care_instructions" name="care_instructions" rows="2"></textarea></div>
-          <label class="check"><input type="checkbox" name="is_new_arrival"> Mark as a new arrival</label>
-          <label class="check"><input type="checkbox" name="is_best_seller"> Mark as a best seller</label>
         </div>
       </details>
-      <label class="check"><input type="checkbox" name="is_published" {% if not pk %}checked{% endif %}> Show in the shop</label>
+      <div class="checks">
+        <label class="check"><input type="checkbox" name="is_published" {% if not pk %}checked{% endif %}> Show in the shop</label>
+        <label class="check"><input type="checkbox" name="is_new_arrival"> New arrival</label>
+        <label class="check"><input type="checkbox" name="is_best_seller"> Best seller</label>
+      </div>
       <p class="muted" data-progress aria-live="polite" hidden></p>
       <div class="actions"><button class="btn" type="submit" data-busy-label="Saving">Save product</button>
-      <button class="btn btn--ghost" type="button" data-archive hidden>Archive product</button></div>
+      <button class="btn btn--danger" type="button" data-archive hidden>Delete product</button></div>
     </form>
   </section>
   <section data-after-create hidden>
     <h2>Photos</h2>
     <ul class="thumbs" data-images></ul>
-    <form class="form" data-form="image"><div class="field"><label for="image">Add photos <span class="muted">(JPG, PNG or WebP, under 5 MB each)</span></label><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" multiple required><p class="field-error" data-error-for="image"></p></div>
+    <form class="form" data-form="image"><div class="field"><label for="image">Add photos <span class="muted">(JPG, PNG or WebP, any size)</span></label><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" multiple required><p class="field-error" data-error-for="image"></p></div>
       <button class="btn btn--ghost" type="submit" data-busy-label="Uploading">Upload</button></form>
   </section>
   <section class="dash__wide" data-after-create hidden>

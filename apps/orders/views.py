@@ -42,7 +42,7 @@ class CheckoutView(CheckoutBase):
     throttle_scope = "checkout"
 
     def post(self, request) -> Response:
-        services.tidy_unpaid()
+        services.tidy_unpaid()  # release stock held by abandoned orders before selling more
         order, payment, url = services.place_order(request, *self.inputs(request))
         return Response({"order_number": order.number, "reference": payment.reference, "authorization_url": url}, status=201)
 

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
 from rest_framework.permissions import AllowAny
@@ -25,4 +26,11 @@ class HealthView(APIView):
         except Exception:
             checks["cache"] = "error"
         healthy = all(v == "ok" for v in checks.values())
-        return Response({"status": "ok" if healthy else "degraded", "checks": checks}, status=200 if healthy else 503)
+        # Which services this deployment is wired to (names only, never keys).
+        services = {
+            "photos": "cloudinary" if settings.CLOUDINARY_URL else "local disk (lost on redeploy)",
+            "email": "brevo" if settings.BREVO_API_KEY else ("smtp" if settings.EMAIL_HOST else "console only (not delivered)"),
+            "payments": settings.PAYMENT_PROVIDER + (" (test keys)" if settings.PAYSTACK_SECRET_KEY.startswith("sk_test") else ""),
+        }
+        return Response({"status": "ok" if healthy else "degraded", "checks": checks, "services": services},
+                        status=200 if healthy else 503)
