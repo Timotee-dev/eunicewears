@@ -12,7 +12,11 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
-SITE_URL = env("SITE_URL", default="http://localhost:8000").rstrip("/")
+RENDER_HOST = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if RENDER_HOST:
+    ALLOWED_HOSTS.append(RENDER_HOST)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
+SITE_URL = (env("SITE_URL", default="") or (f"https://{RENDER_HOST}" if RENDER_HOST else "http://localhost:8000")).rstrip("/")
 SITE_NAME = "Eunice Wears"
 DJANGO_ADMIN_PATH = env("DJANGO_ADMIN_PATH", default="backoffice/")
 
@@ -161,6 +165,7 @@ if EMAIL_HOST:
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Eunice Wears <hello@eunicewears.example>")
+BREVO_API_KEY = env("BREVO_API_KEY", default="")
 
 # --- Payments -------------------------------------------------------------
 PAYSTACK_PUBLIC_KEY = env("PAYSTACK_PUBLIC_KEY", default="")
@@ -170,15 +175,17 @@ PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
 PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", default="paystack" if PAYSTACK_SECRET_KEY or not DEBUG else "sandbox")
 
 # --- Media (product photos). Local disk in development; Cloudinary at deployment.
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # --- Static / i18n --------------------------------------------------------
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": "apps.core.storage.CloudinaryMediaStorage" if CLOUDINARY_URL
+                else "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
         if DEBUG

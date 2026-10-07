@@ -45,6 +45,7 @@ class StatsView(APIView):
     permission_classes = [IsStaff]
 
     def get(self, request) -> Response:
+        order_services.tidy_unpaid()
         now = timezone.localtime()
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 

@@ -9,3 +9,4 @@ redis>=5.0
 Pillow>=10.4
 requests>=2.32
 celery>=5.4
+cloudinary>=1.41

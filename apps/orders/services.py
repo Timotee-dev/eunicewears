@@ -279,3 +279,11 @@ def expire_unpaid(older_than_minutes: int = 60) -> int:
                     OrderEvent.objects.create(order=fresh, status=S.CANCELLED, note="Not paid in time; order cancelled")
                     count += 1
     return count
+
+
+def tidy_unpaid():
+    try:
+        with transaction.atomic():
+            expire_unpaid(60)
+    except Exception:
+        logger.exception("tidy_unpaid_failed")
