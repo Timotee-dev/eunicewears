@@ -1,0 +1,7 @@
+  <nav class="tabbar" aria-label="Quick links">
+    <a href="{% url 'home' %}" {% if request.path == '/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg>Home</a>
+    <a href="{% url 'shop' %}" {% if request.path == '/shop/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Shop</a>
+    <a href="{% if user.is_authenticated %}{% url 'wishlist' %}{% else %}{% url 'login' %}?next=/wishlist/{% endif %}" {% if request.path == '/wishlist/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg>Wishlist</a>
+    <a href="{% url 'cart' %}" {% if request.path == '/cart/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-bag"/></svg>Cart<span class="count" data-cart-count>{{ cart_count }}</span></a>
+    <a href="{% if user.is_authenticated %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}" {% if request.path == '/account/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg>Account</a>
+  </nav>

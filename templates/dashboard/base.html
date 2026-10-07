@@ -10,6 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
 </head>
 <body class="dash" data-page="{% block page %}{% endblock %}" data-role="{{ user.role }}">
+  {% include "_sprite.html" %}
   <aside class="dash__side">
     <a class="logo" href="{% url 'dashboard' %}" aria-label="Eunice Wears dashboard">{% include "_logo.html" %}</a>
     <nav aria-label="Dashboard">
@@ -23,12 +24,16 @@
       <a href="{% url 'dashboard-home' %}">Home page</a>
       <a href="{% url 'dashboard-content' %}" data-admin-only>Content</a>
       <a href="{% url 'dashboard-settings' %}">Settings</a>
-      <a href="{% url 'home' %}">View store</a>
       <button class="link-button" type="button" data-logout>Sign out</button>
+    </nav>
+    <nav class="dash__store" aria-label="Store">
+      <p class="dash__label">Store</p>
+      {% include "_mainlinks.html" %}
     </nav>
     <p class="muted small">{{ user.full_name }}<br>{{ user.get_role_display }}</p>
   </aside>
   <main class="dash__main" id="main">{% block content %}{% endblock %}</main>
+  {% include "_tabbar.html" %}
   <div class="toasts" aria-live="polite" data-toasts></div>
   <script src="{% static 'js/app.js' %}" defer></script>
   <script src="{% static 'js/dashboard.js' %}" defer></script>
