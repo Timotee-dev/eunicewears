@@ -15,6 +15,7 @@ class ShippingMethod(TimeStampedModel):
 
     name = models.CharField(max_length=80)
     zone = models.CharField(max_length=20, choices=Zone.choices)
+    state = models.CharField(max_length=40, blank=True, help_text="Leave empty for the whole zone, or name one state to give it its own fee.")
     fee = models.BigIntegerField(default=0, help_text="kobo")
     free_over = models.BigIntegerField(null=True, blank=True, help_text="kobo; subtotal at which delivery is free")
     estimate = models.CharField(max_length=80, blank=True)

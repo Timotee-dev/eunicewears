@@ -12,6 +12,7 @@ from apps.cart import services as cart_services
 from apps.catalog.models import InventoryTransaction
 from apps.catalog.services import adjust_stock
 from apps.core import audit
+from apps.core.geo import canonical_state
 from apps.core.mail import deliver_template
 from apps.core.permissions import has_role
 from apps.marketing.models import PromoCodeUsage
@@ -49,11 +50,17 @@ def shipping_for(address: Address, pickup: bool, subtotal: int) -> tuple[Shippin
         zone = Zone.PICKUP
     elif address.country.upper() != "NG":
         zone = Zone.INTERNATIONAL
-    elif address.state.strip().lower() in ("lagos", "lagos state"):
+    elif (canonical_state(address.state) or "") == "Lagos":
         zone = Zone.LAGOS
     else:
         zone = Zone.OTHER_STATES
-    method = ShippingMethod.objects.filter(zone=zone, is_active=True).order_by("id").first()
+    rates = ShippingMethod.objects.filter(is_active=True).order_by("id")
+    method = None
+    if zone in (Zone.LAGOS, Zone.OTHER_STATES):
+        # A rate set for this exact state wins over the general zone rate.
+        state = canonical_state(address.state)
+        method = rates.filter(state=state).exclude(zone=Zone.PICKUP).first() if state else None
+    method = method or rates.filter(zone=zone, state="").first()
     if method is None:
         raise ValidationError("Pickup is not available right now." if pickup else "We do not deliver to this location yet.")
     free = method.free_over is not None and subtotal >= method.free_over

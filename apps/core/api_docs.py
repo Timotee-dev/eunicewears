@@ -58,3 +58,4 @@ from drf_spectacular.utils import extend_schema as _es  # noqa: E402
 
 _es(request=dash.QuickSizesSerializer, responses=dash.AdminProductSerializer, tags=["Admin"],
     summary="Add sizes and colours with stock in one step")(dash.ProductViewSet.quick_sizes)
+doc(extra.EmailCheckView, "Admin", get=dict(responses=OBJ, summary="How email is configured"), post=dict(request=None, responses=OBJ, summary="Send the signed-in owner a test email"))

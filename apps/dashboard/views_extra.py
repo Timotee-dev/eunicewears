@@ -117,7 +117,25 @@ class CustomerActiveView(APIView):
 class ShippingMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShippingMethod
-        fields = ["id", "name", "zone", "fee", "free_over", "estimate", "is_active"]
+        fields = ["id", "name", "zone", "state", "fee", "free_over", "estimate", "is_active"]
+
+    def validate(self, attrs: dict) -> dict:
+        from apps.core.geo import canonical_state
+
+        state = attrs.get("state", getattr(self.instance, "state", ""))
+        zone = attrs.get("zone", getattr(self.instance, "zone", ""))
+        if state:
+            name = canonical_state(state)
+            if name is None:
+                raise serializers.ValidationError({"state": ["Choose a state from the list."]})
+            if zone in ("pickup", "international"):
+                raise serializers.ValidationError({"state": ["A single-state fee only applies to delivery inside Nigeria."]})
+            attrs["state"] = name
+            attrs["zone"] = "lagos" if name == "Lagos" else "other_states"
+            clash = ShippingMethod.objects.filter(state=name, is_active=True).exclude(pk=getattr(self.instance, "pk", None))
+            if attrs.get("is_active", getattr(self.instance, "is_active", True)) and clash.exists():
+                raise serializers.ValidationError({"state": [f"{name} already has its own fee. Edit that one instead."]})
+        return attrs
 
     def validate_fee(self, value: int) -> int:
         if value < 0:
@@ -271,3 +289,24 @@ class HomePicksCategoryView(APIView):
         HomePick.objects.bulk_create([HomePick(category=category, product_id=pid, position=i) for i, pid in enumerate(ids)])
         audit.record("home.picks_updated", request=request, obj=category, changes={"product_ids": ids})
         return Response(_home_picks_payload())
+
+
+class EmailCheckView(APIView):
+    """Lets the owner see how email is set up and send themselves a test, with the real reason if it fails."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request) -> Response:
+        from apps.core.tasks import email_setup
+
+        return Response({**email_setup(), "to": request.user.email})
+
+    def post(self, request) -> Response:
+        from apps.core.tasks import EmailError, send_now
+
+        try:
+            send_now("Eunice Wears test email", "This is a test from your store. Email is working.",
+                     "<p>This is a test from your store. <strong>Email is working.</strong></p>", request.user.email)
+        except EmailError as exc:
+            raise serializers.ValidationError(str(exc))
+        return Response({"message": f"Sent to {request.user.email}. Check the inbox and the spam folder."})

@@ -89,3 +89,11 @@ class AddressSerializer(serializers.ModelSerializer):
         model = Address
         exclude = ["user"]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_state(self, value: str) -> str:
+        from apps.core.geo import canonical_state
+
+        state = canonical_state(value)
+        if state is None:
+            raise serializers.ValidationError("Choose your state from the list.")
+        return state

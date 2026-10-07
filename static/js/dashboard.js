@@ -506,9 +506,25 @@
 
   /* ---------- settings ---------- */
   if (page === "settings") {
+    const emailStatus = $("[data-email-status]"), emailProblem = $("[data-email-problem]"), emailTest = $("[data-email-test]");
+    if (emailTest && isAdmin) {
+      const showProblem = (text) => { emailProblem.textContent = text; emailProblem.hidden = !text; };
+      api("/admin/email-check/").then((e) => {
+        const via = { brevo: "Brevo", smtp: "your mail server", none: "nothing (emails only print in the server log)", other: "a test mailbox" }[e.provider];
+        emailStatus.textContent = "Sending through " + via + ", from " + e.sender + ". Test emails go to " + e.to + ".";
+        showProblem(e.problem);
+      }).catch(() => { emailStatus.textContent = "Could not read the email setup."; });
+      emailTest.addEventListener("click", async () => {
+        emailTest.disabled = true; showProblem("");
+        try { toast((await api("/admin/email-check/", { method: "POST" })).message); }
+        catch (error) { showProblem(error.message); }
+        emailTest.disabled = false;
+      });
+    }
     editor($("[data-shipping]"), "/admin/shipping-methods/", [
       { name: "name", label: "Name shown at checkout", type: "text" },
       { name: "zone", label: "Zone", type: "select", initial: "lagos", options: [["lagos", "Lagos"], ["other_states", "Other Nigerian states"], ["international", "International"], ["pickup", "Pickup"]] },
+      { name: "state", label: "Only for this state", type: "select", initial: "", options: [["", "Whole zone"]].concat(["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT (Abuja)", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"].map((s) => [s, s])) },
       { name: "fee", label: "Fee (\u20a6)", type: "money", zero: true },
       { name: "free_over", label: "Free above (\u20a6)", type: "money" },
       { name: "estimate", label: "Delivery time", type: "text" },

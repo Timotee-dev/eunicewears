@@ -309,16 +309,32 @@ class DeploymentTests(StoreTestCase):
         owner.refresh_from_db()
         self.assertTrue(owner.check_password("a-long-password-1"))  # a redeploy never resets the password
 
-    def test_email_goes_through_brevo_over_https_when_a_key_is_set(self) -> None:
-        from apps.core.tasks import send_email
+    def test_email_goes_through_brevo_and_failures_explain_themselves(self) -> None:
+        from apps.core.tasks import EmailError, send_now
 
+        ok = type("R", (), {"status_code": 201, "json": lambda self: {}})()
         with override_settings(BREVO_API_KEY="xkeysib-test", DEFAULT_FROM_EMAIL="Eunice Wears <shop@example.com>"), \
-                patch("apps.core.tasks.requests.post") as post:
-            send_email("Hello", "plain", "<p>html</p>", "ada@example.com")
+                patch("apps.core.tasks.requests.post", return_value=ok) as post:
+            send_now("Hello", "plain", "<p>html</p>", "ada@example.com")
         body = post.call_args.kwargs["json"]
-        self.assertEqual(post.call_args.args[0], "https://api.brevo.com/v3/smtp/email")
         self.assertEqual((body["sender"], body["to"]), ({"name": "Eunice Wears", "email": "shop@example.com"}, [{"email": "ada@example.com"}]))
-        self.assertEqual(post.call_args.kwargs["headers"]["api-key"], "xkeysib-test")
+
+        with override_settings(BREVO_API_KEY="xkeysib-test"):  # sender left at the placeholder
+            with self.assertRaisesMessage(EmailError, "DEFAULT_FROM_EMAIL is not set"):
+                send_now("Hello", "plain", "<p>html</p>", "ada@example.com")
+        bad = type("R", (), {"status_code": 400, "json": lambda self: {"message": "Sending has been rejected because the sender you used shop@example.com is not valid"}, "text": ""})()
+        with override_settings(BREVO_API_KEY="xkeysib-test", DEFAULT_FROM_EMAIL="Eunice Wears <shop@example.com>"), \
+                patch("apps.core.tasks.requests.post", return_value=bad):
+            with self.assertRaisesMessage(EmailError, "verify it under Senders"):
+                send_now("Hello", "plain", "<p>html</p>", "ada@example.com")
+            # The dashboard button shows that same reason to the owner, and only to admins.
+            self.client.force_authenticate(make_user("mail-admin@example.com", Role.ADMIN))
+            response = self.client.post("/api/admin/email-check/")
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("Brevo refused", response.json()["error"]["message"])
+            self.client.force_authenticate(self.user)
+            self.assertEqual(self.client.post("/api/admin/email-check/").status_code, 403)
+
 
 
 class QuickSizesTests(StoreTestCase):
@@ -399,3 +415,37 @@ class QuickSizesTests(StoreTestCase):
         self.assertIn("could not be read", refused.json()["error"]["fields"]["image"][0])
         too_big = SimpleUploadedFile("huge.jpg", b"0" * (20 * 1024 * 1024 + 1), content_type="image/jpeg")
         self.assertEqual(self.client.post(url, {"image": too_big}, format="multipart").status_code, 400)
+
+
+class StateDeliveryTests(StoreTestCase):
+    def test_customers_pick_a_real_state_and_a_state_can_have_its_own_fee(self) -> None:
+        from apps.accounts.models import Address
+        from apps.orders.models import ShippingMethod
+
+        self.client.force_authenticate(self.user)
+        body = {"first_name": "Ada", "last_name": "Obi", "phone": "0801", "city": "Akure", "line1": "1 Road"}
+        self.assertEqual(self.client.post("/api/account/addresses/", {**body, "state": "Narnia"}, format="json").status_code, 400)
+        made = self.client.post("/api/account/addresses/", {**body, "state": "ondo state"}, format="json").json()
+        self.assertEqual(made["state"], "Ondo")
+        abuja = self.client.post("/api/account/addresses/", {**body, "state": "Abuja", "city": "Garki"}, format="json").json()
+        self.assertEqual(abuja["state"], "FCT (Abuja)")
+
+        self.add(1)
+        quote = lambda address_id: self.client.post("/api/checkout/quote/", {"address_id": address_id}, format="json").json()  # noqa: E731
+        self.assertIn("do not deliver", quote(made["id"])["error"]["message"])  # no rate for other states yet
+        ShippingMethod.objects.create(name="Delivery outside Lagos", zone="other_states", fee=450_000)
+        general = quote(made["id"])["shipping_fee"]
+        self.assertEqual(general, ShippingMethod.objects.get(zone="other_states", state="").fee)
+
+        self.client.force_authenticate(make_user("rates-admin@example.com", Role.ADMIN))
+        new = {"name": "Ondo delivery", "zone": "lagos", "state": "Ondo", "fee": 150_000, "free_over": None, "estimate": "2 days", "is_active": True}
+        saved = self.client.post("/api/admin/shipping-methods/", new, format="json")
+        self.assertEqual((saved.status_code, saved.json()["zone"]), (201, "other_states"))  # the zone is corrected from the state
+        self.assertEqual(self.client.post("/api/admin/shipping-methods/", new, format="json").status_code, 400)  # one fee per state
+        self.assertEqual(self.client.post("/api/admin/shipping-methods/", {**new, "state": "Atlantis"}, format="json").status_code, 400)
+
+        self.client.force_authenticate(self.user)
+        self.assertEqual(quote(made["id"])["shipping_fee"], 150_000)   # Ondo now has its own fee
+        self.assertEqual(quote(abuja["id"])["shipping_fee"], general)  # other states keep the general one
+        self.assertEqual(quote(self.address.pk)["shipping_fee"], ShippingMethod.objects.get(zone="lagos", state="").fee)
+        self.assertEqual(Address.objects.filter(user=self.user).count(), 3)

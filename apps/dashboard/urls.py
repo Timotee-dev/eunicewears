@@ -14,6 +14,7 @@ router.register("reviews", extra.ReviewViewSet, basename="admin-review")
 urlpatterns = [
     path("stats/", views.StatsView.as_view()),
     path("analytics/", extra.AnalyticsView.as_view()),
+    path("email-check/", extra.EmailCheckView.as_view()),
     path("home-picks/", extra.HomePicksView.as_view()),
     path("home-picks/<int:pk>/", extra.HomePicksCategoryView.as_view()),
     path("customers/", extra.CustomerListView.as_view()),
