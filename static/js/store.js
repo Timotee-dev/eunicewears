@@ -362,7 +362,8 @@
       list.replaceChildren(...addresses.map((a) => h("li", { class: "address" + (a.id === addressId ? " is-default" : "") },
         h("label", { class: "choice" },
           h("input", { type: "radio", name: "address", checked: a.id === addressId, onchange: () => { addressId = a.id; renderAddresses(); refreshQuote(); } }),
-          h("span", {}, h("strong", {}, a.first_name + " " + a.last_name), h("br"), [a.line1, a.line2, a.city, a.state].filter(Boolean).join(", "), h("br"), a.phone)))));
+          h("span", {}, h("strong", {}, a.first_name + " " + a.last_name), h("br"), [a.line1, a.line2, a.city, a.state].filter(Boolean).join(", "), h("br"), a.phone)),
+        h("button", { class: "btn btn--ghost btn--small address__edit", type: "button", onclick: () => addressEditor.edit(a) }, "Edit"))));
     }
 
     async function loadAddresses(selectId) {
@@ -372,11 +373,7 @@
       refreshQuote();
     }
 
-    bindForm($('[data-form="address"]'), async (data, form) => {
-      const created = await api("/account/addresses/", { method: "POST", body: data });
-      form.closest("details").open = false;
-      await loadAddresses(created.id);
-    });
+    const addressEditor = window.EW.addressForm($('[data-form="address"]'), (saved) => loadAddresses(saved.id));
     promoForm.addEventListener("submit", (event) => {
       event.preventDefault();
       promoError.textContent = "";

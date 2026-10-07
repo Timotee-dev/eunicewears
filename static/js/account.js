@@ -44,6 +44,10 @@
       item.appendChild(line(a.phone, "muted"));
       const actions = document.createElement("div");
       actions.className = "actions";
+      const edit = document.createElement("button");
+      edit.type = "button"; edit.className = "btn btn--ghost btn--small"; edit.textContent = "Edit";
+      edit.addEventListener("click", () => addressEditor.edit(a));
+      actions.appendChild(edit);
       if (!a.is_default) actions.appendChild(action("Make default", () => api("/account/addresses/" + a.id + "/", { method: "PATCH", body: { is_default: true } })));
       actions.appendChild(action("Remove", () => api("/account/addresses/" + a.id + "/", { method: "DELETE" })));
       item.appendChild(actions);
@@ -73,13 +77,7 @@
     toast("Password changed.");
   });
 
-  bindForm($('[data-form="address"]'), async (data, form) => {
-    await api("/account/addresses/", { method: "POST", body: data });
-    ["line1", "line2", "city", "state", "delivery_instructions"].forEach((n) => (form.querySelector('[name="' + n + '"]').value = ""));
-    form.closest("details").open = false;
-    toast("Address saved.");
-    await loadAddresses();
-  });
+  const addressEditor = window.EW.addressForm($('[data-form="address"]'), () => loadAddresses());
 
   if (list) loadAddresses();
 

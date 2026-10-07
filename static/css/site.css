@@ -947,3 +947,22 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
   .stock__step { width: 2.25rem; height: 2.25rem; }
   .stock__sell span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
+.address__edit { justify-self: start; margin: 0.25rem 0 0 2.4rem; }
+
+/* Settings: one compact line per state */
+.statefees { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: 0.4rem var(--space-3); grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); }
+.statefee { display: grid; grid-template-columns: minmax(5.5rem, 1fr) 6.5rem minmax(0, 1.2fr) auto; align-items: center; gap: 0.5rem; }
+.statefee__name { font-weight: 600; font-size: var(--step--1); }
+.statefee__fee { display: flex; align-items: center; gap: 0.25rem; color: var(--stone); }
+.statefee input:not([type="checkbox"]) { min-height: 2.5rem; padding: 0 0.6rem; font-size: var(--step--1); min-width: 0; width: 100%; }
+@media (max-width: 26rem) {
+  .statefees { grid-template-columns: minmax(0, 1fr); }
+  .statefee { grid-template-columns: minmax(0, 1fr) 6rem auto; }
+  .statefee > input { grid-column: 1 / -1; grid-row: 2; }
+  .statefee { padding-bottom: 0.5rem; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 40rem) {
+  .editor__row .field { flex: 1 1 calc(50% - 0.5rem); min-width: 0; }
+  .editor__row .field:first-child { flex-basis: 100%; }
+  .editor__row { padding: 0.85rem; }
+}

@@ -184,7 +184,41 @@
     if (!drawer.open) drawer.showModal();
   }
 
-  window.EW = { api, ApiError, toast, bindForm, h, money, date, setCartCount, busy, openCartDrawer };
+  /* The delivery-address form, used on the account page and at checkout. It adds a new address,
+     or edits an existing one after edit(address) is called. */
+  function addressForm(form, onSaved) {
+    if (!form) return { edit() {} };
+    const FIELDS = ["first_name", "last_name", "phone", "line1", "line2", "city", "state", "delivery_instructions"];
+    const details = form.closest("details"), summary = details ? details.querySelector("summary") : null;
+    const button = form.querySelector('[type="submit"]');
+    const addSummary = summary ? summary.textContent : "", addButton = button.textContent;
+    let editing = null;
+    const paint = () => { button.textContent = editing ? "Save changes" : addButton; if (summary) summary.textContent = editing ? "Edit this address" : addSummary; };
+    const clear = () => { editing = null; ["line1", "line2", "city", "state", "delivery_instructions"].forEach((n) => { form.elements[n].value = ""; }); paint(); };
+    bindForm(form, async (data) => {
+      const body = {};
+      FIELDS.forEach((n) => { body[n] = data[n]; });
+      const wasEditing = Boolean(editing);
+      const saved = await api("/account/addresses/" + (editing ? editing + "/" : ""), { method: editing ? "PATCH" : "POST", body });
+      clear();
+      if (details) details.open = false;
+      toast(wasEditing ? "Address updated." : "Address saved.");
+      await onSaved(saved);
+    });
+    if (details) details.addEventListener("toggle", () => { if (!details.open && editing) clear(); else paint(); });
+    return {
+      edit(address) {
+        editing = address.id;
+        FIELDS.forEach((n) => { form.elements[n].value = address[n] || ""; });
+        if (details) details.open = true;
+        paint();
+        form.scrollIntoView({ behavior: "smooth", block: "center" });
+        form.elements.line1.focus({ preventScroll: true });
+      },
+    };
+  }
+
+  window.EW = { api, ApiError, toast, bindForm, h, money, date, setCartCount, busy, openCartDrawer, addressForm };
 })();
 
 /* Site-wide extras: newsletter signup and search suggestions in the header. */

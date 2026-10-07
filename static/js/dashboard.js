@@ -318,7 +318,7 @@
   }
 
   /* ---------- shared: editable list (one small form per record, plus an "add" form) ---------- */
-  function editor(host, path, fields, labels) {
+  function editor(host, path, fields, labels, keep) {
     const read = (form) => {
       const body = {};
       fields.forEach((f) => {
@@ -358,7 +358,7 @@
     }
     async function load() {
       try {
-        const rows = await api(path);
+        const rows = (await api(path)).filter(keep || (() => true));
         host.setAttribute("aria-busy", "false");
         host.replaceChildren(h("div", { class: "editor" }, rows.length ? rows.map(rowForm) : empty(labels.empty), isAdmin ? rowForm(null) : null));
       } catch (error) { host.replaceChildren(empty(error.message)); }
@@ -524,12 +524,47 @@
     editor($("[data-shipping]"), "/admin/shipping-methods/", [
       { name: "name", label: "Name shown at checkout", type: "text" },
       { name: "zone", label: "Zone", type: "select", initial: "lagos", options: [["lagos", "Lagos"], ["other_states", "Other Nigerian states"], ["international", "International"], ["pickup", "Pickup"]] },
-      { name: "state", label: "Only for this state", type: "select", initial: "", options: [["", "Whole zone"]].concat(["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT (Abuja)", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"].map((s) => [s, s])) },
       { name: "fee", label: "Fee (\u20a6)", type: "money", zero: true },
       { name: "free_over", label: "Free above (\u20a6)", type: "money" },
       { name: "estimate", label: "Delivery time", type: "text" },
       { name: "is_active", label: "Active", type: "checkbox" },
-    ], { add: "Add rate", added: "Delivery rate added.", empty: "No delivery rates yet. Checkout cannot work without one." });
+    ], { add: "Add rate", added: "Delivery rate added.", empty: "No delivery rates yet. Checkout cannot work without one." }, (rate) => !rate.state);
+
+    /* One compact line per state: fee, delivery time, on/off. One button saves every line that changed. */
+    const stateHost = $("[data-state-fees]");
+    async function loadStateFees() {
+      let rates;
+      try { rates = (await api("/admin/shipping-methods/")).filter((r) => r.state).sort((a, b) => a.state.localeCompare(b.state)); }
+      catch (error) { stateHost.replaceChildren(empty(error.message)); return; }
+      stateHost.setAttribute("aria-busy", "false");
+      if (!rates.length) { stateHost.replaceChildren(empty("No state fees yet. Every state outside Lagos uses the general rate above.")); return; }
+      const lines = rates.map((rate) => {
+        const fee = h("input", { type: "number", min: "0", step: "0.01", value: fromKobo(rate.fee), disabled: !isAdmin, "aria-label": rate.state + " fee in naira" });
+        const days = h("input", { value: rate.estimate || "", disabled: !isAdmin, "aria-label": rate.state + " delivery time", placeholder: "Delivery time" });
+        const on = h("input", { type: "checkbox", checked: rate.is_active, disabled: !isAdmin, "aria-label": "Deliver to " + rate.state });
+        const changes = () => {
+          const body = {};
+          if (toKobo(fee.value) !== rate.fee) body.fee = toKobo(fee.value) || 0;
+          if (days.value.trim() !== (rate.estimate || "")) body.estimate = days.value.trim();
+          if (on.checked !== rate.is_active) body.is_active = on.checked;
+          return body;
+        };
+        return { rate, changes, row: h("li", { class: "statefee" }, h("span", { class: "statefee__name" }, rate.state),
+          h("span", { class: "statefee__fee" }, h("span", { "aria-hidden": "true" }, "\u20a6"), fee), days, h("label", { class: "stock__sell" }, on, h("span", {}, "On"))) };
+      });
+      const save = isAdmin ? h("button", { class: "btn", type: "button" }, "Save state fees") : null;
+      if (save) save.addEventListener("click", () => busy(save, async () => {
+        let saved = 0;
+        for (const line of lines) {
+          const body = line.changes();
+          if (Object.keys(body).length) { await api("/admin/shipping-methods/" + line.rate.id + "/", { method: "PATCH", body }); saved += 1; }
+        }
+        toast(saved ? "Saved " + saved + (saved === 1 ? " state." : " states.") : "Nothing was changed.");
+        if (saved) await loadStateFees();
+      }));
+      stateHost.replaceChildren(h("ul", { class: "statefees" }, lines.map((line) => line.row)), save);
+    }
+    if (stateHost) loadStateFees();
     editor($("[data-categories]"), "/admin/categories/", [
       { name: "name", label: "Name", type: "text" },
       { name: "position", label: "Order in menus", type: "number", zero: true },

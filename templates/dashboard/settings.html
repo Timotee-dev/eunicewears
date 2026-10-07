@@ -6,7 +6,10 @@
   <p class="form-error" role="alert" data-email-problem hidden></p>
   <button class="btn btn--ghost" type="button" data-email-test>Send me a test email</button></section>
 <section><h2>Delivery rates</h2>
-  <p class="muted">Customers choose their state at checkout. Lagos addresses get the Lagos rate and every other state gets the "Other Nigerian states" rate. To charge one state differently, add a rate and pick that state under "Only for this state". "Free above" is the order subtotal at which delivery becomes free.</p>
+  <p class="muted">Customers choose their state at checkout. Lagos addresses get the Lagos rate, "I will pick it up" gets Pickup, and a state with no fee of its own below gets "Delivery outside Lagos". "Free above" is the order subtotal at which delivery becomes free.</p>
   <div data-shipping aria-busy="true"><div class="skeleton"></div></div></section>
+<section><h2>Fee for each state</h2>
+  <p class="muted">These starter fees are placeholders. Type your real fee beside each state, then press Save state fees once. Switch a state off to stop delivering there.</p>
+  <div data-state-fees aria-busy="true"><div class="skeleton"></div></div></section>
 <section><h2>Categories</h2><div data-categories aria-busy="true"><div class="skeleton"></div></div></section>
 {% endblock %}

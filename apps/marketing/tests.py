@@ -449,3 +449,26 @@ class StateDeliveryTests(StoreTestCase):
         self.assertEqual(quote(abuja["id"])["shipping_fee"], general)  # other states keep the general one
         self.assertEqual(quote(self.address.pk)["shipping_fee"], ShippingMethod.objects.get(zone="lagos", state="").fee)
         self.assertEqual(Address.objects.filter(user=self.user).count(), 3)
+
+    def test_starter_rates_cover_every_state_and_customers_can_edit_addresses(self) -> None:
+        from apps.core.geo import NIGERIAN_STATES
+        from apps.orders.models import ShippingMethod
+        from apps.orders.starter_rates import ensure_starter_rates
+
+        ShippingMethod.objects.filter(zone="lagos").update(fee=999_900)   # the owner's own Lagos fee
+        ensure_starter_rates()
+        self.assertEqual(ensure_starter_rates(), 0)                        # running it again adds nothing
+        self.assertEqual(ShippingMethod.objects.get(zone="lagos", state="").fee, 999_900)  # and never overwrites
+        with_own_rate = set(ShippingMethod.objects.exclude(state="").values_list("state", flat=True))
+        self.assertEqual(with_own_rate, set(NIGERIAN_STATES) - {"Lagos"})
+
+        self.client.force_authenticate(self.user)
+        self.add(1)
+        quote = lambda: self.client.post("/api/checkout/quote/", {"address_id": self.address.pk}, format="json").json()  # noqa: E731
+        self.assertEqual(quote()["shipping_fee"], 999_900)
+        # The customer moves: editing the saved address changes where, and what, they pay for delivery.
+        moved = self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Kano", "city": "Kano", "line1": "9 New Road"}, format="json")
+        self.assertEqual((moved.status_code, moved.json()["state"]), (200, "Kano"))
+        self.assertEqual((quote()["shipping_fee"], quote()["shipping_method"]), (600_000, "Delivery to Kano"))
+        self.client.force_authenticate(make_user("someone-else@example.com"))
+        self.assertEqual(self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"city": "X"}, format="json").status_code, 404)
