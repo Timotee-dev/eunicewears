@@ -920,3 +920,30 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
 .stock__sell { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--step--1); font-weight: 400; color: var(--stone); padding-left: 0.3rem; }
 .stock__sell input { accent-color: var(--brown); width: 1.05rem; height: 1.05rem; }
 @media (max-width: 44rem) { .thumbs img { width: 5.5rem; } .thumbs { gap: var(--space-1) var(--space-2); } }
+
+/* Cart on phones (checked at 320, 360 and 390px wide with long product names) */
+.split > * { min-width: 0; }
+.line { grid-template-columns: 6rem minmax(0, 1fr) auto; }
+.line__info { min-width: 0; }
+.line__info a { overflow-wrap: anywhere; }
+@media (max-width: 40rem) {
+  .line { grid-template-columns: 4.75rem minmax(0, 1fr); gap: 0.25rem 0.85rem; }
+  .line img, .line__blank { width: 4.75rem; grid-row: span 2; }
+  .line__total { grid-column: 2; justify-self: start; font-size: var(--step-1); color: var(--brown); }
+  .stepper { flex-wrap: wrap; row-gap: 0.4rem; }
+  .stepper .link-button { margin-left: auto; }
+  .summary { position: static; }
+  .cartpage > h1 { font-size: 2.25rem; }
+}
+@media (max-width: 40rem) {
+  /* an old menu rule gave every text button a divider line and full height on phones */
+  main .link-button, .drawer .link-button { border-bottom: 0; min-height: 0; display: inline-flex; }
+}
+.account__grid > *, .dash__cols > * { min-width: 0; }
+@media (max-width: 52rem) { .account__grid, .dash__cols { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 23rem) {
+  .order-list a { grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem var(--space-1); }
+  .stock__row { grid-template-columns: 2.4rem 2.25rem minmax(2.5rem, 1fr) 2.25rem auto; gap: 0.3rem; }
+  .stock__step { width: 2.25rem; height: 2.25rem; }
+  .stock__sell span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
