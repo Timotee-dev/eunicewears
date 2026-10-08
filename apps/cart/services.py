@@ -6,7 +6,7 @@ from apps.catalog.models import ProductVariant
 from .models import Cart, CartItem
 
 SESSION_KEY = "cart_id"
-MAX_PER_LINE = 20
+MAX_PER_LINE = 500  # stock is the real limit; wholesale buyers take dozens
 
 
 def get_cart(request, create: bool = False) -> Cart | None:
@@ -85,22 +85,42 @@ def merge_guest_cart(request, user) -> None:
 
 
 def summarize(cart: Cart | None) -> dict:
-    """Server-computed view of the cart. Prices come from the database every time."""
-    lines, subtotal, count, problems = [], 0, 0, False
-    for item in cart_items(cart):
+    """Server-computed view of the cart. Prices come from the database every time, wholesale packs included."""
+    from apps.catalog.pricing import price_lines, wholesale_terms
+
+    items = list(cart_items(cart))
+    usable = [item for item in items if purchasable(item.variant) and item.variant.stock >= item.quantity]
+    priced = dict(zip([item.pk for item in usable], price_lines([(item.variant, item.quantity) for item in usable])))
+    pieces: dict[int, int] = {}
+    for item in usable:
+        pieces[item.variant.product_id] = pieces.get(item.variant.product_id, 0) + item.quantity
+
+    lines, subtotal, count, problems, saved = [], 0, 0, False, 0
+    for item in items:
         v, p = item.variant, item.variant.product
-        ok = purchasable(v) and v.stock >= item.quantity
+        ok = item.pk in priced
         problems = problems or not ok
         images = list(p.images.all())
-        line_total = v.unit_price * item.quantity
+        retail = v.unit_price * item.quantity
+        line = priced.get(item.pk)
+        line_total = line.line_total if line else retail
         if ok:
             subtotal += line_total
+            saved += retail - line_total
         count += item.quantity
+        terms, hint = wholesale_terms(p), None
+        if ok and terms:
+            have = pieces[p.pk]
+            short = terms[0] - have % terms[0]
+            if have < terms[0]:
+                hint = f"Add {short} more of this product (any size or colour) for the wholesale price."
         lines.append({
             "id": item.pk, "variant_id": v.pk, "product": p.name, "slug": p.slug, "label": v.label,
             "image": images[0].image.url if images else None, "unit_price": v.unit_price,
-            "quantity": item.quantity, "line_total": line_total, "max_quantity": min(v.stock, MAX_PER_LINE),
-            "available": ok,
+            "quantity": item.quantity, "line_total": line_total, "retail_total": retail,
+            "wholesale_units": line.wholesale_units if line else 0, "wholesale_hint": hint,
+            "max_quantity": min(v.stock, MAX_PER_LINE), "available": ok,
             "problem": None if ok else ("No longer available" if not purchasable(v) or v.stock == 0 else f"Only {v.stock} left"),
         })
-    return {"items": lines, "count": count, "subtotal": subtotal, "has_problems": problems, "currency": "NGN"}
+    return {"items": lines, "count": count, "subtotal": subtotal, "wholesale_savings": saved,
+            "has_problems": problems, "currency": "NGN"}

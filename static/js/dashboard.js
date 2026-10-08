@@ -113,7 +113,7 @@
           h("dl", { class: "totals totals--narrow" },
             h("div", {}, h("dt", {}, "Subtotal"), h("dd", {}, money(o.subtotal))),
             o.discount ? h("div", {}, h("dt", {}, "Discount (" + o.promo_code + ")"), h("dd", {}, "\u2212" + money(o.discount))) : null,
-            h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, money(o.shipping_fee))),
+            h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, o.pay_driver ? "Customer pays driver" : money(o.shipping_fee))),
             h("div", { class: "totals__grand" }, h("dt", {}, "Total"), h("dd", {}, money(o.total))))),
         h("section", {}, h("h2", {}, "Payments"), o.payments.length
           ? table(["Reference", "Via", "Amount", "Status"], o.payments.map((p) => [p.reference, p.provider, money(p.amount), p.status])) : empty("No payment attempts.")),
@@ -157,11 +157,25 @@
     let id = root.dataset.productId;
     const FLAGS = ["is_published", "is_new_arrival", "is_best_seller"];
 
+    /* Shows the owner, in plain numbers, what the wholesale setting will charge. */
+    function wholesaleHint() {
+      const hint = $("[data-wholesale-hint]"), pack = parseInt(form.elements.wholesale_pack.value, 10), packPrice = toKobo(form.elements.wholesale_price.value);
+      const normal = toKobo(form.elements.discount_price.value) || toKobo(form.elements.price.value);
+      if (!pack && !packPrice) { hint.textContent = "Leave both empty if you do not sell this product wholesale."; return; }
+      if (!pack || !packPrice) { hint.textContent = "Fill in both boxes: how many pieces, and the price for that many."; return; }
+      hint.textContent = "Buying 1 to " + (pack - 1) + ": " + (normal ? money(normal) + " each" : "the normal price") + ". Every " + pack + " pieces: " + money(packPrice)
+        + " (" + "about " + money(Math.round(packPrice / pack / 100) * 100) + " each). " + pack * 2 + " pieces: " + money(packPrice * 2) + ". Buyers can mix sizes and colours.";
+    }
+    ["wholesale_pack", "wholesale_price", "price", "discount_price"].forEach((n) => form.elements[n].addEventListener("input", wholesaleHint));
+
     function fill(p) {
       ["name", "short_description", "description", "materials", "care_instructions"].forEach((n) => { form.elements[n].value = p[n] || ""; });
       form.elements.category.value = p.category;
       form.elements.price.value = fromKobo(p.price);
       form.elements.discount_price.value = fromKobo(p.discount_price);
+      form.elements.wholesale_pack.value = p.wholesale_pack || "";
+      form.elements.wholesale_price.value = fromKobo(p.wholesale_price);
+      wholesaleHint();
       FLAGS.forEach((n) => { form.elements[n].checked = p[n]; });
       renderImages(p.images);
       renderVariants(p.variants);
@@ -224,9 +238,10 @@
 
     /* Read the simple "sizes, colours, quantity" fields from a form. */
     function sizeChoices(source) {
-      const sizes = Array.from(source.querySelectorAll('input[name="size_opt"]:checked')).map((el) => el.value);
+      const extra = source.elements.other_sizes ? source.elements.other_sizes.value.split(",").map((x) => x.trim()).filter(Boolean) : [];
+      const sizes = Array.from(source.querySelectorAll('input[name="size_opt"]:checked')).map((el) => el.value).concat(extra);
       const colors = source.elements.colors.value.split(",").map((c) => c.trim()).filter(Boolean);
-      const problem = !sizes.length ? "Tick at least one size." : !colors.length ? "Type at least one colour, for example Black." : null;
+      const problem = !sizes.length ? "Tick at least one size, or type one under Other sizes." : sizes.some((x) => x.length > 10) ? "Keep each size to 10 characters or fewer." : !colors.length ? "Type at least one colour, for example Black." : null;
       return { problem, body: { fit: source.elements.fit.value, sizes, colors, quantity: parseInt(source.elements.quantity.value, 10) || 0 } };
     }
     /* Phone photos are often 5 to 20 MB. Shrink them in the browser first so uploads are quick on mobile data;
@@ -270,6 +285,7 @@
     bindForm(form, async (data) => {
       const body = {
         name: data.name, category: Number(data.category), price: toKobo(data.price), discount_price: toKobo(data.discount_price),
+        wholesale_pack: parseInt(data.wholesale_pack, 10) || null, wholesale_price: toKobo(data.wholesale_price),
         short_description: data.short_description, description: data.description, materials: data.materials,
         care_instructions: data.care_instructions, is_published: data.is_published, is_new_arrival: data.is_new_arrival, is_best_seller: data.is_best_seller,
       };
@@ -526,7 +542,8 @@
       { name: "zone", label: "Zone", type: "select", initial: "lagos", options: [["lagos", "Lagos"], ["other_states", "Other Nigerian states"], ["international", "International"], ["pickup", "Pickup"]] },
       { name: "fee", label: "Fee (\u20a6)", type: "money", zero: true },
       { name: "free_over", label: "Free above (\u20a6)", type: "money" },
-      { name: "estimate", label: "Delivery time", type: "text" },
+      { name: "estimate", label: "Note or delivery time", type: "text" },
+      { name: "pay_on_delivery", label: "Customer pays the driver", type: "checkbox", initial: false },
       { name: "is_active", label: "Active", type: "checkbox" },
     ], { add: "Add rate", added: "Delivery rate added.", empty: "No delivery rates yet. Checkout cannot work without one." }, (rate) => !rate.state);
 
@@ -542,15 +559,19 @@
         const fee = h("input", { type: "number", min: "0", step: "0.01", value: fromKobo(rate.fee), disabled: !isAdmin, "aria-label": rate.state + " fee in naira" });
         const days = h("input", { value: rate.estimate || "", disabled: !isAdmin, "aria-label": rate.state + " delivery time", placeholder: "Delivery time" });
         const on = h("input", { type: "checkbox", checked: rate.is_active, disabled: !isAdmin, "aria-label": "Deliver to " + rate.state });
+        const driver = h("input", { type: "checkbox", checked: rate.pay_on_delivery, disabled: !isAdmin, "aria-label": rate.state + ": customer pays the driver" });
+        const lock = () => { fee.disabled = !isAdmin || driver.checked; if (driver.checked) fee.value = "0"; };
+        driver.addEventListener("change", lock); lock();
         const changes = () => {
           const body = {};
           if (toKobo(fee.value) !== rate.fee) body.fee = toKobo(fee.value) || 0;
           if (days.value.trim() !== (rate.estimate || "")) body.estimate = days.value.trim();
+          if (driver.checked !== rate.pay_on_delivery) body.pay_on_delivery = driver.checked;
           if (on.checked !== rate.is_active) body.is_active = on.checked;
           return body;
         };
         return { rate, changes, row: h("li", { class: "statefee" }, h("span", { class: "statefee__name" }, rate.state),
-          h("span", { class: "statefee__fee" }, h("span", { "aria-hidden": "true" }, "\u20a6"), fee), days, h("label", { class: "stock__sell" }, on, h("span", {}, "On"))) };
+          h("span", { class: "statefee__fee" }, h("span", { "aria-hidden": "true" }, "\u20a6"), fee), days, h("label", { class: "stock__sell" }, driver, h("span", {}, "Pay driver")), h("label", { class: "stock__sell" }, on, h("span", {}, "On"))) };
       });
       const save = isAdmin ? h("button", { class: "btn", type: "button" }, "Save state fees") : null;
       if (save) save.addEventListener("click", () => busy(save, async () => {

@@ -179,7 +179,7 @@
     drawer.querySelector("[data-drawer-lines]").replaceChildren(...cart.items.map((item) => h("li", { class: "drawer__line" },
       item.image ? h("img", { src: item.image, alt: "", width: 64, height: 80 }) : h("div", { class: "card__blank drawer__blank", "aria-hidden": "true" }, "EW"),
       h("div", {}, h("strong", {}, item.product), h("p", { class: "muted small" }, item.label + " \u00d7 " + item.quantity)),
-      h("span", { class: "drawer__price" }, money(item.line_total)))));
+      h("span", { class: "drawer__price" }, money(Math.round(item.line_total / 100) * 100)))));
     drawer.querySelector("[data-drawer-subtotal]").textContent = money(cart.subtotal);
     if (!drawer.open) drawer.showModal();
   }

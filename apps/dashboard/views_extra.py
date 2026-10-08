@@ -117,13 +117,17 @@ class CustomerActiveView(APIView):
 class ShippingMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShippingMethod
-        fields = ["id", "name", "zone", "state", "fee", "free_over", "estimate", "is_active"]
+        fields = ["id", "name", "zone", "state", "fee", "free_over", "estimate", "pay_on_delivery", "is_active"]
 
     def validate(self, attrs: dict) -> dict:
         from apps.core.geo import canonical_state
 
         state = attrs.get("state", getattr(self.instance, "state", ""))
         zone = attrs.get("zone", getattr(self.instance, "zone", ""))
+        if attrs.get("pay_on_delivery", getattr(self.instance, "pay_on_delivery", False)):
+            if zone == "pickup":
+                raise serializers.ValidationError({"pay_on_delivery": ["Pickup has no driver to pay."]})
+            attrs["fee"], attrs["free_over"] = 0, None  # nothing is charged at checkout for this rate
         if state:
             name = canonical_state(state)
             if name is None:

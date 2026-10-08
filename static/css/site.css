@@ -966,3 +966,27 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
   .editor__row .field:first-child { flex-basis: 100%; }
   .editor__row { padding: 0.85rem; }
 }
+.prose h2 { font-size: var(--step-2); margin: var(--space-4) 0 var(--space-1); }
+.prose ul { margin: 0 0 var(--space-2); padding-left: 1.25rem; display: grid; gap: 0.4rem; max-width: 62ch; line-height: 1.6; }
+.prose li::marker { color: var(--brown); }
+
+/* Wholesale */
+.wholesale { border: 1.5px dashed var(--line); border-radius: var(--r-md); padding: var(--space-2); margin: 0; display: grid; gap: var(--space-1); background: var(--paper); }
+.wholesale legend { font-weight: 600; padding: 0 0.4rem; }
+.wholesale-note { background: var(--cream); border-left: 4px solid var(--brown); border-radius: var(--r-sm); padding: 0.7rem 0.9rem; font-size: var(--step--1); max-width: none; }
+.card__bulk { margin: 0; padding-inline: 0.35rem; font-size: 0.75rem; font-weight: 600; color: var(--ok); }
+.bulk-note { margin: 0; font-size: var(--step--1); font-weight: 600; color: var(--ok); }
+.stepper__qty { width: 4rem !important; min-height: 2.5rem !important; text-align: center; padding: 0 0.25rem !important; font-weight: 600; -moz-appearance: textfield; }
+.stepper__qty::-webkit-outer-spin-button, .stepper__qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* Footer social links */
+.social { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--space-2) 0 0; padding: 0; }
+.social a { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.5rem; padding: 0 0.9rem; border: 1px solid rgb(255 255 255 / 0.25); border-radius: 999px; font-size: var(--step--1); transition: background-color 0.2s, border-color 0.2s; }
+.social a:hover { background: var(--gold); border-color: var(--gold); color: var(--ink); text-decoration: none; }
+.statefee { grid-template-columns: minmax(5.5rem, 1fr) 6rem minmax(0, 1.1fr) auto auto; }
+.statefees { grid-template-columns: repeat(auto-fill, minmax(27rem, 1fr)); }
+@media (max-width: 30rem) {
+  .statefees { grid-template-columns: minmax(0, 1fr); }
+  .statefee { grid-template-columns: minmax(0, 1fr) 5.5rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--line); }
+  .statefee > input { grid-column: 1 / -1; grid-row: auto; }
+  .statefee .stock__sell span { position: static; width: auto; height: auto; clip-path: none; }
+}

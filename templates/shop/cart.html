@@ -7,7 +7,8 @@
   <div class="split">
     <ul class="lines" data-lines aria-busy="true"><li class="skeleton"></li></ul>
     <aside class="summary" data-summary hidden>
-      <dl class="totals"><div><dt>Subtotal</dt><dd data-subtotal></dd></div></dl>
+      <dl class="totals"><div><dt>Subtotal</dt><dd data-subtotal></dd></div>
+        <div data-saving-row hidden><dt>Wholesale saving included</dt><dd data-saving></dd></div></dl>
       <p class="muted">Delivery is calculated at checkout.</p>
       <p class="form-error" data-cart-problem hidden>Fix the items marked above before checking out.</p>
       <a class="btn btn--block" href="{% url 'checkout' %}" data-checkout>Checkout</a>

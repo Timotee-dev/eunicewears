@@ -13,9 +13,10 @@ class Command(BaseCommand):
         if not settings.DEBUG:
             raise CommandError("seed_demo only runs with DEBUG=True. It must never touch production data.")
         Category.objects.get_or_create(slug="tees", defaults={"name": "Tees"})
-        from apps.orders.starter_rates import ensure_starter_rates
+        from apps.orders.starter_rates import apply_bus_policy, ensure_starter_rates
 
         ensure_starter_rates()
+        apply_bus_policy()
         if not User.objects.filter(email="owner@eunicewears.test").exists():
             User.objects.create_superuser("owner@eunicewears.test", "demo-owner-2026", first_name="Demo", last_name="Owner")
         assert User.objects.get(email="owner@eunicewears.test").role == Role.SUPER_ADMIN

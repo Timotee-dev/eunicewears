@@ -6,10 +6,10 @@
   <p class="form-error" role="alert" data-email-problem hidden></p>
   <button class="btn btn--ghost" type="button" data-email-test>Send me a test email</button></section>
 <section><h2>Delivery rates</h2>
-  <p class="muted">Customers choose their state at checkout. Lagos addresses get the Lagos rate, "I will pick it up" gets Pickup, and a state with no fee of its own below gets "Delivery outside Lagos". "Free above" is the order subtotal at which delivery becomes free.</p>
+  <p class="muted">Customers choose their state at checkout. A state with no line of its own below uses "Bus delivery outside Ondo"; "I will pick it up" uses Pickup. Tick "Customer pays the driver" and checkout charges nothing for delivery on that rate.</p>
   <div data-shipping aria-busy="true"><div class="skeleton"></div></div></section>
-<section><h2>Fee for each state</h2>
-  <p class="muted">These starter fees are placeholders. Type your real fee beside each state, then press Save state fees once. Switch a state off to stop delivering there.</p>
+<section><h2>Delivery for each state</h2>
+  <p class="muted">Every state is listed. With "Pay driver" ticked, the customer pays the bus driver on arrival and you charge nothing at checkout. Untick it and type a fee to charge that state yourself, as Ondo does. Press Save state fees once when you are done. Switch a state off to stop sending there.</p>
   <div data-state-fees aria-busy="true"><div class="skeleton"></div></div></section>
 <section><h2>Categories</h2><div data-categories aria-busy="true"><div class="skeleton"></div></div></section>
 {% endblock %}

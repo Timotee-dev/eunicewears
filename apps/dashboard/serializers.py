@@ -44,7 +44,7 @@ class AdminProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ["id", "name", "slug", "short_description", "description", "category", "category_name", "price",
-                  "discount_price", "materials", "care_instructions", "is_published", "is_featured", "is_best_seller",
+                  "discount_price", "wholesale_pack", "wholesale_price", "materials", "care_instructions", "is_published", "is_featured", "is_best_seller",
                   "is_new_arrival", "variants", "images", "total_stock", "created_at"]
         read_only_fields = ["slug"]
 
@@ -58,6 +58,18 @@ class AdminProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"price": ["Price must be above zero."]})
         if discount is not None and not 0 < discount < price:
             raise serializers.ValidationError({"discount_price": ["Sale price must be above zero and below the price."]})
+        pack = attrs.get("wholesale_pack", getattr(self.instance, "wholesale_pack", None))
+        pack_price = attrs.get("wholesale_price", getattr(self.instance, "wholesale_price", None))
+        if bool(pack) != bool(pack_price):
+            raise serializers.ValidationError({"wholesale_price": ["For wholesale, fill in both how many pieces and the price for that many. Leave both empty to switch wholesale off."]})
+        if pack:
+            if pack < 2:
+                raise serializers.ValidationError({"wholesale_pack": ["Wholesale needs at least 2 pieces."]})
+            normal = (discount or price) * pack
+            if pack_price >= normal:
+                raise serializers.ValidationError({"wholesale_price": [f"{pack} pieces at the normal price already cost \u20a6{normal // 100:,}. The wholesale price must be lower than that."]})
+        else:
+            attrs["wholesale_pack"], attrs["wholesale_price"] = None, None
         return attrs
 
 
@@ -103,7 +115,7 @@ class AdminOrderDetailSerializer(AdminOrderListSerializer):
 
     class Meta(AdminOrderListSerializer.Meta):
         fields = AdminOrderListSerializer.Meta.fields + [
-            "phone", "subtotal", "discount", "promo_code", "shipping_fee", "shipping_method", "is_pickup", "shipping_address",
+            "phone", "subtotal", "discount", "promo_code", "shipping_fee", "shipping_method", "pay_driver", "is_pickup", "shipping_address",
             "tracking_number", "internal_notes", "items", "events", "payments", "next_statuses",
         ]
 

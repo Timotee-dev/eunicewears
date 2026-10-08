@@ -417,6 +417,7 @@ class QuickSizesTests(StoreTestCase):
         self.assertEqual(self.client.post(url, {"image": too_big}, format="multipart").status_code, 400)
 
 
+@SANDBOX
 class StateDeliveryTests(StoreTestCase):
     def test_customers_pick_a_real_state_and_a_state_can_have_its_own_fee(self) -> None:
         from apps.accounts.models import Address
@@ -450,25 +451,139 @@ class StateDeliveryTests(StoreTestCase):
         self.assertEqual(quote(self.address.pk)["shipping_fee"], ShippingMethod.objects.get(zone="lagos", state="").fee)
         self.assertEqual(Address.objects.filter(user=self.user).count(), 3)
 
-    def test_starter_rates_cover_every_state_and_customers_can_edit_addresses(self) -> None:
+    def test_ondo_pays_at_checkout_everyone_else_pays_the_driver_and_addresses_can_be_edited(self) -> None:
         from apps.core.geo import NIGERIAN_STATES
-        from apps.orders.models import ShippingMethod
-        from apps.orders.starter_rates import ensure_starter_rates
+        from apps.orders.models import Order, Payment, ShippingMethod
+        from apps.orders.starter_rates import apply_bus_policy, ensure_starter_rates
 
-        ShippingMethod.objects.filter(zone="lagos").update(fee=999_900)   # the owner's own Lagos fee
+        # The live site already had paid rates from the earlier set-up. The switch runs once.
+        ShippingMethod.objects.create(name="Delivery to Kano", zone="other_states", state="Kano", fee=600_000, estimate="4 to 6 working days")
         ensure_starter_rates()
-        self.assertEqual(ensure_starter_rates(), 0)                        # running it again adds nothing
-        self.assertEqual(ShippingMethod.objects.get(zone="lagos", state="").fee, 999_900)  # and never overwrites
-        with_own_rate = set(ShippingMethod.objects.exclude(state="").values_list("state", flat=True))
-        self.assertEqual(with_own_rate, set(NIGERIAN_STATES) - {"Lagos"})
+        self.assertGreater(apply_bus_policy(), 0)
+        self.assertEqual(set(ShippingMethod.objects.exclude(state="").values_list("state", flat=True)), set(NIGERIAN_STATES) - {"Lagos"})
+        for rate in ShippingMethod.objects.exclude(zone="pickup").exclude(state="Ondo"):
+            self.assertEqual((rate.fee, rate.pay_on_delivery), (0, True), rate.name)
+        ondo = ShippingMethod.objects.get(state="Ondo")
+        self.assertEqual((ondo.pay_on_delivery, ondo.fee > 0), (False, True))
+
+        # Afterwards the owner's own edits are never undone by a redeploy.
+        ShippingMethod.objects.filter(state="Kano").update(fee=300_000, pay_on_delivery=False)
+        self.assertEqual((ensure_starter_rates(), apply_bus_policy()), (0, 0))
+        self.assertEqual(ShippingMethod.objects.get(state="Kano").fee, 300_000)
+        ShippingMethod.objects.filter(state="Kano").update(fee=0, pay_on_delivery=True)
 
         self.client.force_authenticate(self.user)
         self.add(1)
         quote = lambda: self.client.post("/api/checkout/quote/", {"address_id": self.address.pk}, format="json").json()  # noqa: E731
-        self.assertEqual(quote()["shipping_fee"], 999_900)
-        # The customer moves: editing the saved address changes where, and what, they pay for delivery.
-        moved = self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Kano", "city": "Kano", "line1": "9 New Road"}, format="json")
-        self.assertEqual((moved.status_code, moved.json()["state"]), (200, "Kano"))
-        self.assertEqual((quote()["shipping_fee"], quote()["shipping_method"]), (600_000, "Delivery to Kano"))
+        lagos = quote()
+        self.assertEqual((lagos["shipping_fee"], lagos["pay_driver"], lagos["total"]), (0, True, 1_200_000))
+        # The customer edits the saved address to Ondo: now delivery is charged at checkout.
+        moved = self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Ondo", "city": "Akure", "line1": "9 New Road"}, format="json")
+        self.assertEqual((moved.status_code, moved.json()["state"]), (200, "Ondo"))
+        home = quote()
+        self.assertEqual((home["shipping_fee"], home["pay_driver"], home["total"]), (ondo.fee, False, 1_200_000 + ondo.fee))
+        # And to Kano: free at checkout, the order records that the driver is paid on arrival.
+        self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Kano", "city": "Kano"}, format="json")
+        placed = self.checkout().json()
+        order = Order.objects.get(number=placed["order_number"])
+        self.assertEqual((order.shipping_fee, order.pay_driver, order.total, order.shipping_method), (0, True, 1_200_000, "Bus delivery to Kano"))
+        self.assertEqual(Payment.objects.get(order=order).amount, 1_200_000)
         self.client.force_authenticate(make_user("someone-else@example.com"))
         self.assertEqual(self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"city": "X"}, format="json").status_code, 404)
+
+        # A rate marked "pay the driver" can never carry a fee.
+        self.client.force_authenticate(make_user("rates2-admin@example.com", Role.ADMIN))
+        kano = ShippingMethod.objects.get(state="Kano")
+        saved = self.client.patch(f"/api/admin/shipping-methods/{kano.pk}/", {"fee": 500_000, "pay_on_delivery": True}, format="json").json()
+        self.assertEqual((saved["fee"], saved["pay_on_delivery"]), (0, True))
+
+    def test_information_pages_have_starter_text_and_owner_text_is_escaped(self) -> None:
+        for slug, phrase in [("about", "plain round neck tees"), ("faq", "How do I pay?"), ("shipping", "Where we deliver"),
+                             ("returns", "within 7 days"), ("privacy", "What we collect"), ("terms", "Governing law")]:
+            page = self.client.get(f"/{slug}/")
+            self.assertContains(page, phrase)
+            self.assertNotContains(page, "being written")
+        self.assertContains(self.client.get("/returns/"), "<h2>Refunds</h2>", html=True)
+        self.assertContains(self.client.get("/returns/"), "<li>Reply to your order email with your order number and the reason.</li>", html=True)
+
+        self.client.force_authenticate(make_user("content-admin@example.com", Role.ADMIN))
+        self.client.put("/api/admin/content/page-returns/", {"title": "Returns", "body": "## Our <b>rule</b>\n\n- 14 days\n- <script>x</script>\n\nPlain line"}, format="json")
+        page = self.client.get("/returns/").content.decode()
+        self.assertIn("<h2>Our &lt;b&gt;rule&lt;/b&gt;</h2>", page)
+        self.assertIn("<li>14 days</li><li>&lt;script&gt;x&lt;/script&gt;</li>", page)
+        self.assertNotIn("<script>x</script>", page)
+        self.assertNotIn("within 7 days", page)  # the owner's text replaced the starter text
+        self.client.put("/api/admin/content/page-returns/", {"title": "", "body": ""}, format="json")
+        self.assertContains(self.client.get("/returns/"), "within 7 days")  # emptied: starter text is back, never a blank page
+
+
+@SANDBOX
+class WholesaleTests(StoreTestCase):
+    """Pack of 12 for N100,000 on a tee that is N12,000 each."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        from apps.catalog.models import InventoryTransaction as T, ProductVariant
+        from apps.catalog.services import adjust_stock
+        from apps.orders.models import ShippingMethod
+
+        self.product.wholesale_pack, self.product.wholesale_price = 12, 10_000_000
+        self.product.save()
+        self.second = ProductVariant.objects.create(product=self.product, fit="oversized", size="L", color="White", sku="EW-OVR-WHT-L")
+        adjust_stock(self.variant.pk, 40, T.Reason.RESTOCK)
+        adjust_stock(self.second.pk, 40, T.Reason.RESTOCK)
+        ShippingMethod.objects.filter(zone="lagos").update(free_over=None)
+        self.client.force_authenticate(self.user)
+
+    def cart(self, first: int, second: int = 0) -> dict:
+        from apps.cart.models import CartItem
+
+        CartItem.objects.all().delete()
+        self.client.post("/api/cart/items/", {"variant_id": self.variant.pk, "quantity": first}, format="json")
+        if second:
+            self.client.post("/api/cart/items/", {"variant_id": self.second.pk, "quantity": second}, format="json")
+        return self.client.get("/api/cart/").json()
+
+    def test_packs_are_wholesale_and_leftovers_are_retail(self) -> None:
+        self.assertEqual(self.cart(11)["subtotal"], 11 * 1_200_000)                     # 1 to 11: normal price
+        self.assertIn("Add 1 more", self.cart(11)["items"][0]["wholesale_hint"])
+        self.assertEqual(self.cart(12)["subtotal"], 10_000_000)                         # 12: one pack
+        self.assertEqual(self.cart(24)["subtotal"], 20_000_000)                         # 24: two packs
+        self.assertEqual(self.cart(13)["subtotal"], 10_000_000 + 1_200_000)             # 13: a pack and one at retail
+        mixed = self.cart(7, 5)                                                         # sizes and colours mix into one pack
+        self.assertEqual((mixed["subtotal"], mixed["wholesale_savings"]), (10_000_000, 12 * 1_200_000 - 10_000_000))
+        self.assertEqual(sum(i["line_total"] for i in mixed["items"]), 10_000_000)      # the kobo add up exactly
+        self.assertEqual([i["wholesale_units"] for i in mixed["items"]], [7, 5])
+
+    def test_the_order_and_the_payment_use_the_wholesale_total(self) -> None:
+        self.cart(7, 5)
+        response = self.checkout()
+        placed = response.json()
+        self.assertEqual(response.status_code, 201, placed)
+        order = Order.objects.get(number=placed["order_number"])
+        self.assertEqual((order.subtotal, order.total), (10_000_000, 10_000_000 + 250_000))
+        self.assertEqual(Payment.objects.get().amount, 10_250_000)
+        self.assertEqual(sum(i.line_total for i in order.items.all()), 10_000_000)
+        self.assertTrue(all("wholesale" in i.variant_label for i in order.items.all()))
+        self.assertEqual(self.stock(), 3 + 40 - 7)
+
+    def test_owner_sets_wholesale_on_the_product_and_bad_settings_are_refused(self) -> None:
+        self.client.force_authenticate(make_user("ws-admin@example.com", Role.ADMIN))
+        url = f"/api/admin/products/{self.product.pk}/"
+        self.assertEqual(self.client.patch(url, {"wholesale_pack": 12, "wholesale_price": None}, format="json").status_code, 400)   # half filled
+        self.assertEqual(self.client.patch(url, {"wholesale_pack": 12, "wholesale_price": 14_400_000}, format="json").status_code, 400)  # not cheaper
+        self.assertEqual(self.client.patch(url, {"wholesale_pack": 6, "wholesale_price": 6_000_000}, format="json").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/products/{self.product.slug}/").json()["wholesale"], {"pack": 6, "price": 6_000_000, "each": 1_000_000})
+        self.assertEqual(self.client.patch(url, {"wholesale_pack": None, "wholesale_price": None}, format="json").status_code, 200)   # switched off
+        self.assertIsNone(self.client.get(f"/api/products/{self.product.slug}/").json()["wholesale"])
+
+    def test_social_links_and_starter_size_guide(self) -> None:
+        self.assertNotContains(self.client.get("/"), "tiktok.com")
+        self.client.force_authenticate(make_user("social-admin@example.com", Role.ADMIN))
+        saved = self.client.put("/api/admin/content/social/", {"tiktok": "@eunice.wears", "whatsapp": "+234 801 234 5678", "instagram": "javascript:alert(1)"}, format="json")
+        self.assertEqual(saved.status_code, 200)
+        home = self.client.get("/")
+        self.assertContains(home, 'href="https://www.tiktok.com/@eunice.wears"')
+        self.assertContains(home, 'href="https://wa.me/2348012345678"')
+        self.assertNotContains(home, "javascript:alert")
+        self.assertContains(self.client.get(f"/product/{self.product.slug}/"), "<td>59</td>")  # starter size chart shows

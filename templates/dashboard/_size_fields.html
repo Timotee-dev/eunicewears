@@ -10,8 +10,11 @@
     <label class="chip"><input type="checkbox" name="size_opt" value="XXL"> XXL</label>
   </div>
 </fieldset>
+<div class="field"><label for="{{ prefix }}other_sizes">Other sizes <span class="muted">(optional, for things like 50ml, 100ml, 32, 34, One size)</span></label>
+  <input id="{{ prefix }}other_sizes" name="other_sizes" placeholder="Separate with commas"></div>
 <div class="field"><label for="{{ prefix }}colors">Colours <span class="muted">(separate with commas)</span></label>
   <input id="{{ prefix }}colors" name="colors" placeholder="Black, White, Brown" required>
+  <p class="hint">For products with no colour, such as perfumes, type the scent or just "Standard".</p>
   <p class="field-error" data-error-for="colors"></p></div>
 <div class="field"><label for="{{ prefix }}quantity">How many of each size and colour</label>
   <input id="{{ prefix }}quantity" name="quantity" type="number" min="0" value="10" required>

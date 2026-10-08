@@ -11,6 +11,7 @@ from apps.accounts.models import Address
 from apps.cart import services as cart_services
 from apps.catalog.models import InventoryTransaction
 from apps.catalog.services import adjust_stock
+from apps.catalog.pricing import price_lines
 from apps.core import audit
 from apps.core.geo import canonical_state
 from apps.core.mail import deliver_template
@@ -63,6 +64,8 @@ def shipping_for(address: Address, pickup: bool, subtotal: int) -> tuple[Shippin
     method = method or rates.filter(zone=zone, state="").first()
     if method is None:
         raise ValidationError("Pickup is not available right now." if pickup else "We do not deliver to this location yet.")
+    if method.pay_on_delivery:
+        return method, 0  # the customer settles delivery with the bus driver on arrival
     free = method.free_over is not None and subtotal >= method.free_over
     return method, 0 if free else method.fee
 
@@ -74,6 +77,7 @@ def quote(request, address: Address, pickup: bool, promo_code: str = "") -> dict
     method, fee = shipping_for(address, pickup, summary["subtotal"])
     discount = apply_promo(promo_code, request.user, summary["subtotal"])[1] if promo_code else 0
     return {**summary, "shipping_method": method.name, "shipping_estimate": method.estimate, "shipping_fee": fee,
+            "pay_driver": method.pay_on_delivery,
             "discount": discount, "promo_code": promo_code.upper() if promo_code else "",
             "total": summary["subtotal"] - discount + fee}
 
@@ -95,17 +99,20 @@ def place_order(request, address: Address, pickup: bool, promo_code: str = "") -
         user=user, email=user.email, phone=address.phone, shipping_address=_snapshot(address),
         shipping_method="", is_pickup=pickup, currency=settings.DEFAULT_CURRENCY,
     )
-    subtotal = 0
+    reserved = []
     for line in lines:
         # Locks the variant row, re-reads live stock and price, and reserves the units.
         variant = adjust_stock(line.variant_id, -line.quantity, InventoryTransaction.Reason.SALE, actor=user, order=order)
         if not cart_services.purchasable(variant):
             raise ValidationError(f"{variant.product.name} is no longer available. Remove it from your cart to continue.")
-        line_total = variant.unit_price * line.quantity
-        subtotal += line_total
+        reserved.append((variant, line.quantity))
+    subtotal = 0
+    for (variant, quantity), priced in zip(reserved, price_lines(reserved)):
+        subtotal += priced.line_total
+        label = variant.label + (f" (wholesale x{priced.wholesale_units})" if priced.wholesale_units else "")
         OrderItem.objects.create(
-            order=order, variant=variant, product_name=variant.product.name, variant_label=variant.label,
-            sku=variant.sku, unit_price=variant.unit_price, quantity=line.quantity, line_total=line_total,
+            order=order, variant=variant, product_name=variant.product.name, variant_label=label[:120],
+            sku=variant.sku, unit_price=priced.line_total // quantity, quantity=quantity, line_total=priced.line_total,
         )
     method, fee = shipping_for(address, pickup, subtotal)
     order.number = f"EW-{order.created_at.year}-{order.pk:06d}"
@@ -116,6 +123,7 @@ def place_order(request, address: Address, pickup: bool, promo_code: str = "") -
         PromoCodeUsage.objects.create(promo=promo, user=user, order=order, discount=discount)
         order.promo_code, order.discount = promo.code, discount
     order.subtotal, order.shipping_fee, order.shipping_method = subtotal, fee, method.name
+    order.pay_driver = method.pay_on_delivery
     order.total = subtotal - discount + fee
     order.save()
     OrderEvent.objects.create(order=order, status=S.PENDING_PAYMENT, note="Order placed", actor=user)

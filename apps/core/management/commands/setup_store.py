@@ -13,11 +13,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options) -> None:
         Category.objects.get_or_create(slug="tees", defaults={"name": "Tees"})
-        from apps.orders.starter_rates import ensure_starter_rates
+        from apps.orders.starter_rates import apply_bus_policy, ensure_starter_rates
 
         added = ensure_starter_rates()
-        if added:
-            self.stdout.write(f"Added {added} starter delivery rates (placeholder fees: edit them in Dashboard > Settings).")
+        switched = apply_bus_policy()
+        if added or switched:
+            self.stdout.write(f"Delivery rates: {added} added, {switched} switched to pay-the-driver. Edit them in Dashboard > Settings.")
         email = os.environ.get("OWNER_EMAIL", "").strip().lower()
         password = os.environ.get("OWNER_PASSWORD", "")
         if not email or not password:

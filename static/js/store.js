@@ -5,6 +5,8 @@
   const $ = (selector, root) => (root || document).querySelector(selector);
   const page = document.body.dataset.page;
   const params = new URLSearchParams(window.location.search);
+  // A wholesale pack price shared across sizes can land on a fraction of a naira per line; show whole naira.
+  const whole = (kobo) => Math.round(kobo / 100) * 100;
   let currentVariant = null; // the size/colour the shopper has picked on a product page
 
   function skeletons(host, count) {
@@ -25,6 +27,7 @@
       h("div", { class: "card__media" }, media,
         !p.in_stock ? h("span", { class: "badge card__flag" }, "Sold out") : p.is_new_arrival ? h("span", { class: "badge card__flag" }, "New") : null),
       h("h3", { class: "card__name" }, p.name), priceNode(p),
+      p.wholesale ? h("p", { class: "card__bulk" }, "Wholesale: " + p.wholesale.pack + " for " + money(p.wholesale.price)) : null,
       h("div", { class: "swatches", role: "img", "aria-label": "Colours: " + p.colors.map((c) => c.name).join(", ") },
         p.colors.map((c) => { const dot = h("span", { class: "swatch", title: c.name }); dot.style.background = c.hex || "#DCCBB6"; return dot; }))));
   }
@@ -153,6 +156,12 @@
       renderOptions();
       const variant = selected();
       currentVariant = variant;
+      const note = $("[data-wholesale]");
+      if (note && product.wholesale) {
+        const w = product.wholesale;
+        note.replaceChildren(h("strong", {}, "Wholesale price: "), "every " + w.pack + " pieces for " + money(w.price) + " (" + "about " + money(Math.round(w.each / 100) * 100) + " each). Mix any sizes and colours; the price is applied in your cart.");
+        note.hidden = false;
+      }
       if (!variant) {
         addButton.disabled = true; addButton.textContent = "Choose your options"; stockNote.textContent = "";
         notify.hidden = true;
@@ -300,13 +309,18 @@
           h("a", { href: "/product/" + item.slug + "/" }, h("strong", {}, item.product)),
           h("p", { class: "muted" }, item.label),
           item.problem ? h("p", { class: "field-error" }, item.problem) : null,
+          item.wholesale_units ? h("p", { class: "bulk-note" }, "Wholesale price on " + item.wholesale_units + (item.wholesale_units === item.quantity ? "" : " of " + item.quantity) + ". You save " + money(whole(item.retail_total - item.line_total)) + ".") : null,
+          item.wholesale_hint ? h("p", { class: "muted small" }, item.wholesale_hint) : null,
           h("div", { class: "stepper" },
             h("button", { type: "button", "aria-label": "Decrease quantity", disabled: item.quantity <= 1, onclick: change(item, { quantity: item.quantity - 1 }) }, "\u2212"),
-            h("span", { "aria-live": "polite" }, String(item.quantity)),
+            h("input", { class: "stepper__qty", type: "number", min: "1", max: String(item.max_quantity), value: String(item.quantity), inputmode: "numeric", "aria-label": "Quantity of " + item.product,
+              onchange: (event) => { const wanted = Math.max(1, parseInt(event.target.value, 10) || 1); const input = event.target; if (wanted === item.quantity) { input.value = item.quantity; return; } change(item, { quantity: wanted })(event).then(() => { if (input.isConnected) input.value = item.quantity; }); } }),
             h("button", { type: "button", "aria-label": "Increase quantity", disabled: item.quantity >= item.max_quantity, onclick: change(item, { quantity: item.quantity + 1 }) }, "+"),
             h("button", { type: "button", class: "link-button", onclick: change(item, undefined, "DELETE") }, "Remove"))),
-        h("p", { class: "line__total" }, money(item.line_total)))));
+        h("p", { class: "line__total" }, money(item.wholesale_units ? whole(item.line_total) : item.line_total)))));
       $("[data-subtotal]").textContent = money(cart.subtotal);
+      const saving = $("[data-saving-row]");
+      if (saving) { saving.hidden = !cart.wholesale_savings; $("[data-saving]").textContent = money(cart.wholesale_savings); }
       $("[data-cart-problem]").hidden = !cart.has_problems;
       $("[data-checkout]").classList.toggle("is-disabled", cart.has_problems);
     }
@@ -335,7 +349,7 @@
         $("[data-mini]").replaceChildren(...q.items.map((i) => h("li", {}, h("span", {}, i.quantity + " \u00d7 " + i.product + " (" + i.label + ")"), h("span", {}, money(i.line_total)))));
         $("[data-subtotal]").textContent = money(q.subtotal);
         $("[data-ship-label]").textContent = q.shipping_method;
-        $("[data-shipping]").textContent = q.shipping_fee ? money(q.shipping_fee) : "Free";
+        $("[data-shipping]").textContent = q.pay_driver ? "Pay the driver" : q.shipping_fee ? money(q.shipping_fee) : "Free";
         $("[data-total]").textContent = money(q.total);
         $("[data-estimate]").textContent = q.shipping_estimate;
         if (q.has_problems) fail("Some items in your cart are no longer available. Go back to your cart to fix them.");
@@ -454,7 +468,7 @@
           h("dl", { class: "totals" },
             h("div", {}, h("dt", {}, "Subtotal"), h("dd", {}, money(o.subtotal))),
             o.discount ? h("div", {}, h("dt", {}, "Discount (" + o.promo_code + ")"), h("dd", {}, "\u2212" + money(o.discount))) : null,
-            h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, o.shipping_fee ? money(o.shipping_fee) : "Free")),
+            h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, o.pay_driver ? "Pay the driver on arrival" : o.shipping_fee ? money(o.shipping_fee) : "Free")),
             h("div", { class: "totals__grand" }, h("dt", {}, "Total"), h("dd", {}, money(o.total)))),
           h("p", { class: "muted" }, "Payment: " + o.payment_status_label)));
     }).catch((error) => host.replaceChildren(h("p", { class: "empty" }, error instanceof ApiError && error.status === 404 ? "We could not find that order." : error.message)));

@@ -18,7 +18,8 @@ class ShippingMethod(TimeStampedModel):
     state = models.CharField(max_length=40, blank=True, help_text="Leave empty for the whole zone, or name one state to give it its own fee.")
     fee = models.BigIntegerField(default=0, help_text="kobo")
     free_over = models.BigIntegerField(null=True, blank=True, help_text="kobo; subtotal at which delivery is free")
-    estimate = models.CharField(max_length=80, blank=True)
+    estimate = models.CharField(max_length=120, blank=True)
+    pay_on_delivery = models.BooleanField(default=False, help_text="Nothing is charged at checkout; the customer pays the bus driver or park when the parcel arrives.")
     is_active = models.BooleanField(default=True)
 
     def __str__(self) -> str:
@@ -53,6 +54,7 @@ class Order(TimeStampedModel):
     subtotal = models.BigIntegerField(default=0)
     discount = models.BigIntegerField(default=0)
     promo_code = models.CharField(max_length=30, blank=True)
+    pay_driver = models.BooleanField(default=False)  # delivery is paid to the bus driver on arrival, not to the store
     shipping_fee = models.BigIntegerField(default=0)
     total = models.BigIntegerField(default=0)
     shipping_method = models.CharField(max_length=80)

@@ -44,11 +44,18 @@ class ProductListSerializer(serializers.ModelSerializer):
     in_stock = serializers.SerializerMethodField()
     colors = serializers.SerializerMethodField()
     category = serializers.CharField(source="category.name")
+    wholesale = serializers.SerializerMethodField()
+
+    def get_wholesale(self, p: Product) -> dict | None:
+        from .pricing import wholesale_terms
+
+        terms = wholesale_terms(p)
+        return {"pack": terms[0], "price": terms[1], "each": terms[1] // terms[0]} if terms else None
 
     class Meta:
         model = Product
         fields = ["id", "name", "slug", "short_description", "category", "price", "discount_price", "current_price",
-                  "image", "in_stock", "colors", "is_new_arrival", "is_best_seller"]
+                  "image", "in_stock", "colors", "is_new_arrival", "is_best_seller", "wholesale"]
 
     def _variants(self, p: Product) -> list[ProductVariant]:
         return [v for v in p.variants.all() if v.is_active]  # prefetched

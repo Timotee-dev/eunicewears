@@ -57,6 +57,8 @@ class Product(TimeStampedModel):
     collections = models.ManyToManyField(Collection, blank=True, related_name="products")
     price = models.BigIntegerField(help_text="kobo")
     discount_price = models.BigIntegerField(null=True, blank=True, help_text="kobo; must be below price")
+    wholesale_pack = models.PositiveIntegerField(null=True, blank=True, help_text="Pieces in one wholesale pack, e.g. 12")
+    wholesale_price = models.BigIntegerField(null=True, blank=True, help_text="kobo; price of one whole pack")
     materials = models.CharField(max_length=255, blank=True)
     care_instructions = models.TextField(blank=True)
     is_published = models.BooleanField(default=False, db_index=True)

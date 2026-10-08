@@ -13,6 +13,7 @@
     <div class="product__info">
       <h1>{{ product.name }}</h1>
       <p class="price" data-price>{{ product.current_price|naira }}</p>
+      <p class="wholesale-note" data-wholesale hidden></p>
       <p class="rating" data-rating hidden></p>
       <p>{{ product.short_description }}</p>
       <form class="form" data-buy novalidate>

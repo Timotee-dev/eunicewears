@@ -57,6 +57,9 @@
       <div>
         <p class="logo">{% include "_logo.html" %}</p>
         <p class="muted">Plain tees, cut properly. Made in Nigeria.</p>
+        {% if social_links %}<ul class="social">{% for link in social_links %}
+          <li><a href="{{ link.url }}" {% if link.name != "Email" %}target="_blank" rel="noopener"{% endif %} aria-label="Eunice Wears on {{ link.name }}"><svg class="icon" aria-hidden="true"><use href="#{{ link.icon }}"/></svg><span>{{ link.name }}</span></a></li>{% endfor %}
+        </ul>{% endif %}
       </div>
       <nav aria-label="Help">
         <a href="/about/">About</a><a href="/faq/">FAQ</a><a href="/shipping/">Shipping</a>

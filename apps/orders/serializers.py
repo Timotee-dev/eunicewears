@@ -32,7 +32,7 @@ class OrderDetailSerializer(OrderListSerializer):
 
     class Meta(OrderListSerializer.Meta):
         fields = OrderListSerializer.Meta.fields + [
-            "subtotal", "discount", "promo_code", "shipping_fee", "shipping_method", "is_pickup", "shipping_address",
+            "subtotal", "discount", "promo_code", "shipping_fee", "shipping_method", "pay_driver", "is_pickup", "shipping_address",
             "tracking_number", "items", "events",
         ]
 
