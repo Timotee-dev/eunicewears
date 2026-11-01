@@ -114,6 +114,7 @@
             h("div", {}, h("dt", {}, "Subtotal"), h("dd", {}, money(o.subtotal))),
             o.discount ? h("div", {}, h("dt", {}, "Discount (" + o.promo_code + ")"), h("dd", {}, "\u2212" + money(o.discount))) : null,
             o.service_charge ? h("div", {}, h("dt", {}, "Service charge"), h("dd", {}, money(o.service_charge))) : null,
+            o.payment_fee ? h("div", {}, h("dt", {}, "Payment processing (Paystack)"), h("dd", {}, money(o.payment_fee))) : null,
             h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, o.pay_driver ? "Customer pays driver" : money(o.shipping_fee))),
             h("div", { class: "totals__grand" }, h("dt", {}, "Total"), h("dd", {}, money(o.total))))),
         h("section", {}, h("h2", {}, "Payments"), o.payments.length
@@ -541,10 +542,17 @@
     const fees = $('[data-form="fees"]');
     if (fees) {
       if (!isAdmin) fees.querySelectorAll("input, button").forEach((el) => { el.disabled = true; });
-      api("/admin/fees/").then((f) => { fees.elements.service_percent.value = String(f.service_percent); }).catch(() => {});
+      api("/admin/fees/").then((f) => {
+        fees.elements.service_percent.value = String(f.service_percent);
+        fees.elements.customer_pays_paystack.checked = f.customer_pays_paystack;
+      }).catch(() => {});
       bindForm(fees, async (data) => {
-        const saved = await api("/admin/fees/", { method: "PUT", body: { service_percent: data.service_percent === "" ? 0 : Number(data.service_percent) } });
+        const saved = await api("/admin/fees/", { method: "PUT", body: {
+          service_percent: data.service_percent === "" ? 0 : Number(data.service_percent),
+          customer_pays_paystack: fees.elements.customer_pays_paystack.checked,
+        } });
         fees.elements.service_percent.value = String(saved.service_percent);
+        fees.elements.customer_pays_paystack.checked = saved.customer_pays_paystack;
         toast(saved.service_percent ? "Service charge set to " + saved.service_percent + "%." : "Service charge turned off.");
       });
     }

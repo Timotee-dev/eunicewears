@@ -511,7 +511,7 @@ class StateDeliveryTests(StoreTestCase):
         from apps.orders import fees
         from apps.orders.models import Order, Payment
 
-        SiteSetting.objects.filter(key=fees.KEY).delete()  # a fresh store: the 2% default
+        SiteSetting.objects.update_or_create(key=fees.KEY, defaults={"value": {"pass_paystack": False}})  # 2% default, Paystack fee off
         self.assertEqual((fees.service_charge(1_000_000), fees.service_charge(0)), (20_000, 0))  # N10,000 -> N200
         self.client.force_authenticate(self.user)
         self.add(1)  # N12,000 tee to Lagos at N2,500
@@ -527,12 +527,40 @@ class StateDeliveryTests(StoreTestCase):
 
         # Staff can see it, only an admin can change it.
         self.client.force_authenticate(make_user("fees-staff@example.com", Role.STAFF))
-        self.assertEqual(self.client.get("/api/admin/fees/").json(), {"service_percent": 2.0})
+        self.assertEqual(self.client.get("/api/admin/fees/").json(), {"service_percent": 2.0, "customer_pays_paystack": False})
         self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 3}, format="json").status_code, 403)
         self.client.force_authenticate(make_user("fees-admin@example.com", Role.ADMIN))
         self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 25}, format="json").status_code, 400)
-        self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 0}, format="json").json(), {"service_percent": 0.0})
+        self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 0}, format="json").json(), {"service_percent": 0.0, "customer_pays_paystack": False})
         self.assertEqual(fees.service_charge(1_000_000), 0)
+        self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 2, "customer_pays_paystack": True}, format="json").json()["customer_pays_paystack"], True)
+        self.assertTrue(fees.customer_pays_paystack())
+
+    def test_the_customer_pays_paystacks_fee_so_the_store_receives_the_full_amount(self) -> None:
+        from apps.core.models import SiteSetting
+        from apps.orders import fees
+        from apps.orders.models import Order, Payment
+
+        # The gross-up is exact to the naira: after Paystack's cut the store has at least the amount, and one naira less would fall short.
+        for amount in (50_000, 249_000, 1_000_000, 1_170_000, 5_000_000, 13_000_000, 50_000_000):
+            gross = amount + fees.processing_fee(amount, enabled=True)
+            self.assertGreaterEqual(gross - fees.paystack_fee(gross), amount, amount)
+            self.assertLess((gross - 100) - fees.paystack_fee(gross - 100), amount, amount)
+        self.assertEqual(fees.processing_fee(1_170_000, enabled=True), 28_000)    # N11,700 -> customer pays N11,980
+        self.assertEqual(fees.processing_fee(50_000_000, enabled=True), 200_000)  # above the cap: a flat N2,000
+        self.assertEqual(fees.processing_fee(1_000_000, enabled=False), 0)
+
+        SiteSetting.objects.filter(key=fees.KEY).delete()  # a fresh store: 2% service charge and the customer pays Paystack
+        self.client.force_authenticate(self.user)
+        self.add(1)
+        before = 1_200_000 + 24_000 + 250_000
+        q = self.client.post("/api/checkout/quote/", {"address_id": self.address.pk}, format="json").json()
+        self.assertEqual(q["payment_fee"], fees.processing_fee(before, enabled=True))
+        self.assertEqual(q["total"], before + q["payment_fee"])
+        order = Order.objects.get(number=self.checkout().json()["order_number"])
+        self.assertEqual((order.payment_fee, order.total), (q["payment_fee"], q["total"]))
+        self.assertEqual(Payment.objects.get(order=order).amount, order.total)
+        self.assertGreaterEqual(order.total - fees.paystack_fee(order.total), before)
 
     def test_information_pages_have_starter_text_and_owner_text_is_escaped(self) -> None:
         for slug, phrase in [("about", "plain round neck tees"), ("faq", "How do I pay?"), ("shipping", "Where we deliver"),

@@ -28,6 +28,8 @@ Oversized is cut loose with a dropped shoulder and a longer body. Regular follow
 
 Checkout runs on Paystack. You can pay with a debit card, bank transfer or USSD. Your order is confirmed the moment Paystack confirms the payment.
 
+At checkout a small service charge on the goods and Paystack's payment fee are added to your total. Both are shown clearly before you pay.
+
 ## Do I need an account?
 
 You can browse and fill your cart without one. You need an account to check out, so you can track the order and see your receipts.

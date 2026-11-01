@@ -322,7 +322,7 @@
       const saving = $("[data-saving-row]");
       if (saving) { saving.hidden = !cart.wholesale_savings; $("[data-saving]").textContent = money(cart.wholesale_savings); }
       $("[data-cart-note]").textContent = cart.service_percent
-        ? "Delivery and a " + cart.service_percent + " service charge are added at checkout."
+        ? "Delivery, a " + cart.service_percent + " service charge and the Paystack payment fee are added at checkout."
         : "Delivery is calculated at checkout.";
       $("[data-cart-problem]").hidden = !cart.has_problems;
       $("[data-checkout]").classList.toggle("is-disabled", cart.has_problems);
@@ -354,6 +354,8 @@
         $("[data-service-row]").hidden = !q.service_charge;
         $("[data-service-label]").textContent = "Service charge (" + q.service_percent + ")";
         $("[data-service]").textContent = money(q.service_charge);
+        $("[data-payfee-row]").hidden = !q.payment_fee;
+        $("[data-payfee]").textContent = money(q.payment_fee);
         $("[data-ship-label]").textContent = q.shipping_method;
         $("[data-shipping]").textContent = q.pay_driver ? "Pay the driver" : q.shipping_fee ? money(q.shipping_fee) : "Free";
         $("[data-total]").textContent = money(q.total);
@@ -475,6 +477,7 @@
             h("div", {}, h("dt", {}, "Subtotal"), h("dd", {}, money(o.subtotal))),
             o.discount ? h("div", {}, h("dt", {}, "Discount (" + o.promo_code + ")"), h("dd", {}, "\u2212" + money(o.discount))) : null,
             o.service_charge ? h("div", {}, h("dt", {}, "Service charge"), h("dd", {}, money(o.service_charge))) : null,
+            o.payment_fee ? h("div", {}, h("dt", {}, "Payment processing (Paystack)"), h("dd", {}, money(o.payment_fee))) : null,
             h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, o.pay_driver ? "Pay the driver on arrival" : o.shipping_fee ? money(o.shipping_fee) : "Free")),
             h("div", { class: "totals__grand" }, h("dt", {}, "Total"), h("dd", {}, money(o.total)))),
           h("p", { class: "muted" }, "Payment: " + o.payment_status_label)));

@@ -327,6 +327,7 @@ class EmailCheckView(APIView):
 
 class FeesSerializer(serializers.Serializer):
     service_percent = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=20)
+    customer_pays_paystack = serializers.BooleanField(required=False)
 
 
 class FeesView(APIView):
@@ -336,16 +337,18 @@ class FeesView(APIView):
         return [IsStaff() if self.request.method == "GET" else IsAdmin()]
 
     def get(self, request) -> Response:
-        from apps.orders.fees import service_bp
+        from apps.orders.fees import customer_pays_paystack, service_bp
 
-        return Response({"service_percent": service_bp() / 100})
+        return Response({"service_percent": service_bp() / 100, "customer_pays_paystack": customer_pays_paystack()})
 
     def put(self, request) -> Response:
-        from apps.orders.fees import KEY
+        from apps.orders.fees import KEY, customer_pays_paystack
 
         data = FeesSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         bp = int(round(data.validated_data["service_percent"] * 100))
-        setting, _ = SiteSetting.objects.update_or_create(key=KEY, defaults={"value": {"service_bp": bp}})
-        audit.record("fees.updated", request=request, obj=setting, changes={"service_bp": bp})
-        return Response({"service_percent": bp / 100})
+        passed = data.validated_data.get("customer_pays_paystack", customer_pays_paystack())
+        value = {"service_bp": bp, "pass_paystack": passed}
+        setting, _ = SiteSetting.objects.update_or_create(key=KEY, defaults={"value": value})
+        audit.record("fees.updated", request=request, obj=setting, changes=value)
+        return Response({"service_percent": bp / 100, "customer_pays_paystack": passed})

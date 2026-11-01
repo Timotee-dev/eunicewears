@@ -19,7 +19,7 @@ from apps.core.permissions import has_role
 from apps.marketing.models import PromoCodeUsage
 from apps.marketing.services import apply_promo
 
-from .fees import percent_label, service_bp, service_charge
+from .fees import percent_label, processing_fee, service_bp, service_charge
 from .models import Order, OrderEvent, OrderItem, OrderStatus, Payment, PaymentStatus, ShippingMethod
 from .payments import ProviderError, get_provider
 
@@ -92,11 +92,13 @@ def quote(request, address: Address, pickup: bool, promo_code: str = "") -> dict
     discount = apply_promo(promo_code, request.user, summary["subtotal"])[1] if promo_code else 0
     bp = service_bp()
     service = service_charge(summary["subtotal"] - discount, bp)
+    before = summary["subtotal"] - discount + service + fee
+    payment_fee = processing_fee(before)
     return {**summary, "shipping_method": method.name, "shipping_estimate": method.estimate, "shipping_fee": fee,
             "pay_driver": method.pay_on_delivery,
             "discount": discount, "promo_code": promo_code.upper() if promo_code else "",
             "service_charge": service, "service_percent": percent_label(bp),
-            "total": summary["subtotal"] - discount + service + fee}
+            "payment_fee": payment_fee, "total": before + payment_fee}
 
 
 def _snapshot(a: Address) -> dict:
@@ -142,7 +144,9 @@ def place_order(request, address: Address, pickup: bool, promo_code: str = "") -
     order.subtotal, order.shipping_fee, order.shipping_method = subtotal, fee, method.name
     order.service_charge = service_charge(subtotal - discount)
     order.pay_driver = method.pay_on_delivery
-    order.total = subtotal - discount + order.service_charge + fee
+    before = subtotal - discount + order.service_charge + fee
+    order.payment_fee = processing_fee(before)
+    order.total = before + order.payment_fee
     order.save()
     OrderEvent.objects.create(order=order, status=S.PENDING_PAYMENT, note="Order placed", actor=user)
 

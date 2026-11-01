@@ -56,6 +56,7 @@ class Order(TimeStampedModel):
     discount = models.BigIntegerField(default=0)
     promo_code = models.CharField(max_length=30, blank=True)
     service_charge = models.BigIntegerField(default=0)  # kobo; the checkout service charge
+    payment_fee = models.BigIntegerField(default=0)  # kobo; Paystack's commission, paid by the customer
     pay_driver = models.BooleanField(default=False)  # delivery is paid to the bus driver on arrival, not to the store
     shipping_fee = models.BigIntegerField(default=0)
     total = models.BigIntegerField(default=0)
