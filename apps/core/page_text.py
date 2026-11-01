@@ -34,7 +34,7 @@ You can browse and fill your cart without one. You need an account to check out,
 
 ## Where do you deliver?
 
-To every state in Nigeria. Inside Ondo State we deliver for a fee shown at checkout. To every other state your order goes by bus and you pay the driver when it arrives, so checkout charges nothing for delivery. You can also choose to pick up your order.
+To every state in Nigeria. Inside Ondo town we deliver for N1,500, paid at checkout. Everywhere else, including the rest of Ondo State, your order goes by bus and you pay the driver when it arrives, so checkout charges nothing for delivery. You can also choose to pick up your order.
 
 ## How do I track my order?
 
@@ -60,18 +60,18 @@ SHIPPING = """## Where we deliver
 
 We send orders to all 36 states and the FCT. You choose your state at checkout.
 
-## Inside Ondo State
+## Inside Ondo town
 
-We deliver to you directly. The delivery fee shows at checkout and you pay it together with your order.
+We deliver to you directly for N1,500, paid at checkout together with your order. Type "Ondo" as the city on your delivery address.
 
-## Every other state
+## Everywhere else, including the rest of Ondo State
 
 Your order travels by bus (waybill). We do not charge a delivery fee at checkout for these orders. You pay the bus driver or the park directly when you collect your parcel, at whatever they charge for that route. We send you the driver's or park's details once it is on the way.
 
 ## How long it takes
 
 - We prepare orders within 1 to 2 working days of payment.
-- Inside Ondo State: usually 1 to 2 working days after that.
+- Inside Ondo town: usually 1 to 2 working days after that.
 - Other states: usually 1 to 4 days by bus, depending on distance and the route.
 
 Working days are Monday to Friday and exclude public holidays. Times are estimates; buses can be delayed by weather, traffic or busy periods.
@@ -188,7 +188,7 @@ Keep your password private. You are responsible for orders placed through your a
 
 ## Delivery
 
-Delivery inside Ondo State is charged at checkout. Orders to other states travel by bus and the bus fare is paid by you to the driver or park on arrival; that fare is not set or collected by us. Estimated times are not guarantees. See the Shipping page.
+Delivery inside Ondo town is charged at checkout. Orders to everywhere else travel by bus and the bus fare is paid by you to the driver or park on arrival; that fare is not set or collected by us. Estimated times are not guarantees. See the Shipping page.
 
 ## Returns and refunds
 

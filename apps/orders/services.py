@@ -19,6 +19,7 @@ from apps.core.permissions import has_role
 from apps.marketing.models import PromoCodeUsage
 from apps.marketing.services import apply_promo
 
+from .fees import percent_label, service_bp, service_charge
 from .models import Order, OrderEvent, OrderItem, OrderStatus, Payment, PaymentStatus, ShippingMethod
 from .payments import ProviderError, get_provider
 
@@ -45,6 +46,14 @@ class PaymentUnavailable(APIException):
     default_detail = "We could not reach the payment provider. Nothing was charged; try again in a moment."
 
 
+def town_key(value: str) -> str:
+    """'Ondo Town', 'ondo-city', ' ONDO ' -> 'ondo'. Used to match a customer's typed city to a town rate."""
+    words = "".join(ch if ch.isalpha() else " " for ch in (value or "").lower()).split()
+    while words and words[-1] in ("town", "city", "state", "metropolis"):
+        words.pop()
+    return " ".join(words)
+
+
 def shipping_for(address: Address, pickup: bool, subtotal: int) -> tuple[ShippingMethod, int]:
     Zone = ShippingMethod.Zone
     if pickup:
@@ -60,7 +69,12 @@ def shipping_for(address: Address, pickup: bool, subtotal: int) -> tuple[Shippin
     if zone in (Zone.LAGOS, Zone.OTHER_STATES):
         # A rate set for this exact state wins over the general zone rate.
         state = canonical_state(address.state)
-        method = rates.filter(state=state).exclude(zone=Zone.PICKUP).first() if state else None
+        if state:
+            state_rates = list(rates.filter(state=state).exclude(zone=Zone.PICKUP))
+            town = town_key(address.city)
+            # A rate for the customer's own town (e.g. Ondo town) wins over the rate for the rest of the state.
+            method = next((r for r in state_rates if r.city and town_key(r.city) == town), None) \
+                or next((r for r in state_rates if not r.city), None)
     method = method or rates.filter(zone=zone, state="").first()
     if method is None:
         raise ValidationError("Pickup is not available right now." if pickup else "We do not deliver to this location yet.")
@@ -76,10 +90,13 @@ def quote(request, address: Address, pickup: bool, promo_code: str = "") -> dict
         raise ValidationError("Your cart is empty.")
     method, fee = shipping_for(address, pickup, summary["subtotal"])
     discount = apply_promo(promo_code, request.user, summary["subtotal"])[1] if promo_code else 0
+    bp = service_bp()
+    service = service_charge(summary["subtotal"] - discount, bp)
     return {**summary, "shipping_method": method.name, "shipping_estimate": method.estimate, "shipping_fee": fee,
             "pay_driver": method.pay_on_delivery,
             "discount": discount, "promo_code": promo_code.upper() if promo_code else "",
-            "total": summary["subtotal"] - discount + fee}
+            "service_charge": service, "service_percent": percent_label(bp),
+            "total": summary["subtotal"] - discount + service + fee}
 
 
 def _snapshot(a: Address) -> dict:
@@ -123,8 +140,9 @@ def place_order(request, address: Address, pickup: bool, promo_code: str = "") -
         PromoCodeUsage.objects.create(promo=promo, user=user, order=order, discount=discount)
         order.promo_code, order.discount = promo.code, discount
     order.subtotal, order.shipping_fee, order.shipping_method = subtotal, fee, method.name
+    order.service_charge = service_charge(subtotal - discount)
     order.pay_driver = method.pay_on_delivery
-    order.total = subtotal - discount + fee
+    order.total = subtotal - discount + order.service_charge + fee
     order.save()
     OrderEvent.objects.create(order=order, status=S.PENDING_PAYMENT, note="Order placed", actor=user)
 

@@ -117,13 +117,17 @@ class CustomerActiveView(APIView):
 class ShippingMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShippingMethod
-        fields = ["id", "name", "zone", "state", "fee", "free_over", "estimate", "pay_on_delivery", "is_active"]
+        fields = ["id", "name", "zone", "state", "city", "fee", "free_over", "estimate", "pay_on_delivery", "is_active"]
 
     def validate(self, attrs: dict) -> dict:
         from apps.core.geo import canonical_state
 
         state = attrs.get("state", getattr(self.instance, "state", ""))
         zone = attrs.get("zone", getattr(self.instance, "zone", ""))
+        city = attrs.get("city", getattr(self.instance, "city", "")).strip()
+        if city and not state:
+            raise serializers.ValidationError({"city": ["Choose the state this town is in."]})
+        attrs["city"] = city
         if attrs.get("pay_on_delivery", getattr(self.instance, "pay_on_delivery", False)):
             if zone == "pickup":
                 raise serializers.ValidationError({"pay_on_delivery": ["Pickup has no driver to pay."]})
@@ -136,9 +140,13 @@ class ShippingMethodSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"state": ["A single-state fee only applies to delivery inside Nigeria."]})
             attrs["state"] = name
             attrs["zone"] = "lagos" if name == "Lagos" else "other_states"
-            clash = ShippingMethod.objects.filter(state=name, is_active=True).exclude(pk=getattr(self.instance, "pk", None))
-            if attrs.get("is_active", getattr(self.instance, "is_active", True)) and clash.exists():
-                raise serializers.ValidationError({"state": [f"{name} already has its own fee. Edit that one instead."]})
+            from apps.orders.services import town_key
+
+            same = [r for r in ShippingMethod.objects.filter(state=name, is_active=True).exclude(pk=getattr(self.instance, "pk", None))
+                    if town_key(r.city) == town_key(city)]
+            if attrs.get("is_active", getattr(self.instance, "is_active", True)) and same:
+                where = f"{city} ({name})" if city else name
+                raise serializers.ValidationError({"state": [f"{where} already has its own fee. Edit that one instead."]})
         return attrs
 
     def validate_fee(self, value: int) -> int:
@@ -314,3 +322,30 @@ class EmailCheckView(APIView):
         except EmailError as exc:
             raise serializers.ValidationError(str(exc))
         return Response({"message": f"Sent to {request.user.email}. Check the inbox and the spam folder."})
+
+
+
+class FeesSerializer(serializers.Serializer):
+    service_percent = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=20)
+
+
+class FeesView(APIView):
+    """The checkout service charge, as a percentage of the goods total."""
+
+    def get_permissions(self):
+        return [IsStaff() if self.request.method == "GET" else IsAdmin()]
+
+    def get(self, request) -> Response:
+        from apps.orders.fees import service_bp
+
+        return Response({"service_percent": service_bp() / 100})
+
+    def put(self, request) -> Response:
+        from apps.orders.fees import KEY
+
+        data = FeesSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        bp = int(round(data.validated_data["service_percent"] * 100))
+        setting, _ = SiteSetting.objects.update_or_create(key=KEY, defaults={"value": {"service_bp": bp}})
+        audit.record("fees.updated", request=request, obj=setting, changes={"service_bp": bp})
+        return Response({"service_percent": bp / 100})

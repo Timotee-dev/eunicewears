@@ -5,6 +5,13 @@
   <p data-email-status class="muted">Checking&hellip;</p>
   <p class="form-error" role="alert" data-email-problem hidden></p>
   <button class="btn btn--ghost" type="button" data-email-test>Send me a test email</button></section>
+<section><h2>Service charge</h2>
+  <p class="muted">Added at checkout on the price of the goods (after any promo code), not on delivery. Set 0 to turn it off.</p>
+  <form class="form editor__row" data-form="fees" novalidate>
+    <p class="form-error" role="alert" data-form-error hidden></p>
+    <div class="field"><label for="service_percent">Service charge (%)</label><input id="service_percent" name="service_percent" type="number" min="0" max="20" step="0.1" value="2"><p class="field-error" data-error-for="service_percent"></p></div>
+    <button class="btn btn--small" type="submit" data-busy-label="Saving">Save</button>
+  </form></section>
 <section><h2>Delivery rates</h2>
   <p class="muted">Customers choose their state at checkout. A state with no line of its own below uses "Bus delivery outside Ondo"; "I will pick it up" uses Pickup. Tick "Customer pays the driver" and checkout charges nothing for delivery on that rate.</p>
   <div data-shipping aria-busy="true"><div class="skeleton"></div></div></section>

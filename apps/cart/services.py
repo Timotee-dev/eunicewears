@@ -122,5 +122,9 @@ def summarize(cart: Cart | None) -> dict:
             "max_quantity": min(v.stock, MAX_PER_LINE), "available": ok,
             "problem": None if ok else ("No longer available" if not purchasable(v) or v.stock == 0 else f"Only {v.stock} left"),
         })
+    from apps.orders.fees import percent_label, service_bp
+
+    bp = service_bp()
     return {"items": lines, "count": count, "subtotal": subtotal, "wholesale_savings": saved,
+            "service_percent": percent_label(bp) if bp else "",
             "has_problems": problems, "currency": "NGN"}

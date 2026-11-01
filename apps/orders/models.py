@@ -16,6 +16,7 @@ class ShippingMethod(TimeStampedModel):
     name = models.CharField(max_length=80)
     zone = models.CharField(max_length=20, choices=Zone.choices)
     state = models.CharField(max_length=40, blank=True, help_text="Leave empty for the whole zone, or name one state to give it its own fee.")
+    city = models.CharField(max_length=60, blank=True, help_text="Optional: one town inside the state, e.g. Ondo. Empty = the whole state.")
     fee = models.BigIntegerField(default=0, help_text="kobo")
     free_over = models.BigIntegerField(null=True, blank=True, help_text="kobo; subtotal at which delivery is free")
     estimate = models.CharField(max_length=120, blank=True)
@@ -54,6 +55,7 @@ class Order(TimeStampedModel):
     subtotal = models.BigIntegerField(default=0)
     discount = models.BigIntegerField(default=0)
     promo_code = models.CharField(max_length=30, blank=True)
+    service_charge = models.BigIntegerField(default=0)  # kobo; the checkout service charge
     pay_driver = models.BooleanField(default=False)  # delivery is paid to the bus driver on arrival, not to the store
     shipping_fee = models.BigIntegerField(default=0)
     total = models.BigIntegerField(default=0)

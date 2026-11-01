@@ -115,7 +115,7 @@ class AdminOrderDetailSerializer(AdminOrderListSerializer):
 
     class Meta(AdminOrderListSerializer.Meta):
         fields = AdminOrderListSerializer.Meta.fields + [
-            "phone", "subtotal", "discount", "promo_code", "shipping_fee", "shipping_method", "pay_driver", "is_pickup", "shipping_address",
+            "phone", "subtotal", "discount", "promo_code", "service_charge", "shipping_fee", "shipping_method", "pay_driver", "is_pickup", "shipping_address",
             "tracking_number", "internal_notes", "items", "events", "payments", "next_statuses",
         ]
 

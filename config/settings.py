@@ -173,8 +173,6 @@ BREVO_API_KEY = env("BREVO_API_KEY", default="")
 # --- Payments -------------------------------------------------------------
 PAYSTACK_PUBLIC_KEY = env("PAYSTACK_PUBLIC_KEY", default="")
 PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
-# "paystack" whenever a key is set. With no key, DEBUG falls back to the local sandbox gateway;
-# production without a key simply refuses to take payments.
 PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", default="paystack" if PAYSTACK_SECRET_KEY or not DEBUG else "sandbox")
 
 # --- Media (product photos). Local disk in development; Cloudinary at deployment.

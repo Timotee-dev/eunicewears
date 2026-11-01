@@ -451,20 +451,21 @@ class StateDeliveryTests(StoreTestCase):
         self.assertEqual(quote(self.address.pk)["shipping_fee"], ShippingMethod.objects.get(zone="lagos", state="").fee)
         self.assertEqual(Address.objects.filter(user=self.user).count(), 3)
 
-    def test_ondo_pays_at_checkout_everyone_else_pays_the_driver_and_addresses_can_be_edited(self) -> None:
+    def test_ondo_town_pays_at_checkout_everyone_else_pays_the_driver_and_addresses_can_be_edited(self) -> None:
         from apps.core.geo import NIGERIAN_STATES
         from apps.orders.models import Order, Payment, ShippingMethod
         from apps.orders.starter_rates import apply_bus_policy, ensure_starter_rates
 
         # The live site already had paid rates from the earlier set-up. The switch runs once.
         ShippingMethod.objects.create(name="Delivery to Kano", zone="other_states", state="Kano", fee=600_000, estimate="4 to 6 working days")
+        ShippingMethod.objects.create(name="Delivery within Ondo State", zone="other_states", state="Ondo", fee=200_000)
         ensure_starter_rates()
         self.assertGreater(apply_bus_policy(), 0)
         self.assertEqual(set(ShippingMethod.objects.exclude(state="").values_list("state", flat=True)), set(NIGERIAN_STATES) - {"Lagos"})
-        for rate in ShippingMethod.objects.exclude(zone="pickup").exclude(state="Ondo"):
+        for rate in ShippingMethod.objects.exclude(zone="pickup").exclude(city="Ondo"):
             self.assertEqual((rate.fee, rate.pay_on_delivery), (0, True), rate.name)
-        ondo = ShippingMethod.objects.get(state="Ondo")
-        self.assertEqual((ondo.pay_on_delivery, ondo.fee > 0), (False, True))
+        town = ShippingMethod.objects.get(state="Ondo", city="Ondo")
+        self.assertEqual((town.pay_on_delivery, town.fee), (False, 150_000))
 
         # Afterwards the owner's own edits are never undone by a redeploy.
         ShippingMethod.objects.filter(state="Kano").update(fee=300_000, pay_on_delivery=False)
@@ -477,11 +478,16 @@ class StateDeliveryTests(StoreTestCase):
         quote = lambda: self.client.post("/api/checkout/quote/", {"address_id": self.address.pk}, format="json").json()  # noqa: E731
         lagos = quote()
         self.assertEqual((lagos["shipping_fee"], lagos["pay_driver"], lagos["total"]), (0, True, 1_200_000))
-        # The customer edits the saved address to Ondo: now delivery is charged at checkout.
-        moved = self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Ondo", "city": "Akure", "line1": "9 New Road"}, format="json")
-        self.assertEqual((moved.status_code, moved.json()["state"]), (200, "Ondo"))
-        home = quote()
-        self.assertEqual((home["shipping_fee"], home["pay_driver"], home["total"]), (ondo.fee, False, 1_200_000 + ondo.fee))
+        # Ondo town (however it is typed) is charged N1,500 at checkout.
+        for typed in ("Ondo", "ondo town", "Ondo City"):
+            moved = self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Ondo", "city": typed, "line1": "9 New Road"}, format="json")
+            self.assertEqual((moved.status_code, moved.json()["state"]), (200, "Ondo"))
+            home = quote()
+            self.assertEqual((home["shipping_fee"], home["pay_driver"], home["total"]), (150_000, False, 1_350_000), typed)
+        # Another town in Ondo State pays the driver.
+        self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"city": "Akure"}, format="json")
+        akure = quote()
+        self.assertEqual((akure["shipping_fee"], akure["pay_driver"]), (0, True))
         # And to Kano: free at checkout, the order records that the driver is paid on arrival.
         self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"state": "Kano", "city": "Kano"}, format="json")
         placed = self.checkout().json()
@@ -491,11 +497,42 @@ class StateDeliveryTests(StoreTestCase):
         self.client.force_authenticate(make_user("someone-else@example.com"))
         self.assertEqual(self.client.patch(f"/api/account/addresses/{self.address.pk}/", {"city": "X"}, format="json").status_code, 404)
 
-        # A rate marked "pay the driver" can never carry a fee.
+        # A rate marked "pay the driver" can never carry a fee; a town rate needs a state and can't be doubled.
         self.client.force_authenticate(make_user("rates2-admin@example.com", Role.ADMIN))
         kano = ShippingMethod.objects.get(state="Kano")
         saved = self.client.patch(f"/api/admin/shipping-methods/{kano.pk}/", {"fee": 500_000, "pay_on_delivery": True}, format="json").json()
         self.assertEqual((saved["fee"], saved["pay_on_delivery"]), (0, True))
+        twin = {"name": "Again", "zone": "other_states", "state": "Ondo", "city": "ondo town", "fee": 100_000, "free_over": None, "estimate": "", "is_active": True}
+        self.assertEqual(self.client.post("/api/admin/shipping-methods/", twin, format="json").status_code, 400)
+        self.assertEqual(self.client.post("/api/admin/shipping-methods/", {**twin, "state": "", "city": "Ikare"}, format="json").status_code, 400)
+
+    def test_service_charge_is_two_percent_of_the_goods_and_the_owner_can_change_it(self) -> None:
+        from apps.core.models import SiteSetting
+        from apps.orders import fees
+        from apps.orders.models import Order, Payment
+
+        SiteSetting.objects.filter(key=fees.KEY).delete()  # a fresh store: the 2% default
+        self.assertEqual((fees.service_charge(1_000_000), fees.service_charge(0)), (20_000, 0))  # N10,000 -> N200
+        self.client.force_authenticate(self.user)
+        self.add(1)  # N12,000 tee to Lagos at N2,500
+        cart = self.client.get("/api/cart/").json()
+        self.assertEqual(cart["service_percent"], "2%")
+        q = self.client.post("/api/checkout/quote/", {"address_id": self.address.pk}, format="json").json()
+        self.assertEqual((q["service_charge"], q["service_percent"], q["total"]), (24_000, "2%", 1_200_000 + 24_000 + 250_000))
+        placed = self.checkout().json()
+        order = Order.objects.get(number=placed["order_number"])
+        self.assertEqual((order.service_charge, order.total), (24_000, 1_474_000))  # delivery is never charged the 2%
+        self.assertEqual(Payment.objects.get(order=order).amount, 1_474_000)
+        self.assertEqual(self.client.get(f"/api/orders/{order.number}/").json()["service_charge"], 24_000)
+
+        # Staff can see it, only an admin can change it.
+        self.client.force_authenticate(make_user("fees-staff@example.com", Role.STAFF))
+        self.assertEqual(self.client.get("/api/admin/fees/").json(), {"service_percent": 2.0})
+        self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 3}, format="json").status_code, 403)
+        self.client.force_authenticate(make_user("fees-admin@example.com", Role.ADMIN))
+        self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 25}, format="json").status_code, 400)
+        self.assertEqual(self.client.put("/api/admin/fees/", {"service_percent": 0}, format="json").json(), {"service_percent": 0.0})
+        self.assertEqual(fees.service_charge(1_000_000), 0)
 
     def test_information_pages_have_starter_text_and_owner_text_is_escaped(self) -> None:
         for slug, phrase in [("about", "plain round neck tees"), ("faq", "How do I pay?"), ("shipping", "Where we deliver"),

@@ -11,7 +11,8 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import Address, Role, User
 from apps.catalog.models import Category, InventoryTransaction, Product, ProductVariant
 from apps.catalog.services import adjust_stock
-from apps.orders import services
+from apps.core.models import SiteSetting
+from apps.orders import fees, services
 from apps.orders.models import Order, OrderStatus, Payment, PaymentStatus, ShippingMethod
 from apps.orders.payments.base import InitResult, VerifyResult
 
@@ -26,6 +27,8 @@ def make_user(email: str, role: str = Role.CUSTOMER) -> User:
 class StoreTestCase(APITestCase):
     def setUp(self) -> None:
         cache.clear()
+        # Older money tests predate the service charge; ServiceChargeTests switch it on.
+        SiteSetting.objects.update_or_create(key=fees.KEY, defaults={"value": {"service_bp": 0}})
         self.category = Category.objects.create(name="Tees")
         self.product = Product.objects.create(name="Oversized Tee", category=self.category, price=1_200_000, is_published=True)
         self.variant = ProductVariant.objects.create(product=self.product, fit="oversized", size="M", color="Black", sku="EW-1")

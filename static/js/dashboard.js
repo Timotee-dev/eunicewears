@@ -113,6 +113,7 @@
           h("dl", { class: "totals totals--narrow" },
             h("div", {}, h("dt", {}, "Subtotal"), h("dd", {}, money(o.subtotal))),
             o.discount ? h("div", {}, h("dt", {}, "Discount (" + o.promo_code + ")"), h("dd", {}, "\u2212" + money(o.discount))) : null,
+            o.service_charge ? h("div", {}, h("dt", {}, "Service charge"), h("dd", {}, money(o.service_charge))) : null,
             h("div", {}, h("dt", {}, o.shipping_method), h("dd", {}, o.pay_driver ? "Customer pays driver" : money(o.shipping_fee))),
             h("div", { class: "totals__grand" }, h("dt", {}, "Total"), h("dd", {}, money(o.total))))),
         h("section", {}, h("h2", {}, "Payments"), o.payments.length
@@ -537,6 +538,16 @@
         emailTest.disabled = false;
       });
     }
+    const fees = $('[data-form="fees"]');
+    if (fees) {
+      if (!isAdmin) fees.querySelectorAll("input, button").forEach((el) => { el.disabled = true; });
+      api("/admin/fees/").then((f) => { fees.elements.service_percent.value = String(f.service_percent); }).catch(() => {});
+      bindForm(fees, async (data) => {
+        const saved = await api("/admin/fees/", { method: "PUT", body: { service_percent: data.service_percent === "" ? 0 : Number(data.service_percent) } });
+        fees.elements.service_percent.value = String(saved.service_percent);
+        toast(saved.service_percent ? "Service charge set to " + saved.service_percent + "%." : "Service charge turned off.");
+      });
+    }
     editor($("[data-shipping]"), "/admin/shipping-methods/", [
       { name: "name", label: "Name shown at checkout", type: "text" },
       { name: "zone", label: "Zone", type: "select", initial: "lagos", options: [["lagos", "Lagos"], ["other_states", "Other Nigerian states"], ["international", "International"], ["pickup", "Pickup"]] },
@@ -551,7 +562,7 @@
     const stateHost = $("[data-state-fees]");
     async function loadStateFees() {
       let rates;
-      try { rates = (await api("/admin/shipping-methods/")).filter((r) => r.state).sort((a, b) => a.state.localeCompare(b.state)); }
+      try { rates = (await api("/admin/shipping-methods/")).filter((r) => r.state).sort((a, b) => a.state.localeCompare(b.state) || (a.city ? 1 : 0) - (b.city ? 1 : 0)); }
       catch (error) { stateHost.replaceChildren(empty(error.message)); return; }
       stateHost.setAttribute("aria-busy", "false");
       if (!rates.length) { stateHost.replaceChildren(empty("No state fees yet. Every state outside Lagos uses the general rate above.")); return; }
@@ -570,7 +581,7 @@
           if (on.checked !== rate.is_active) body.is_active = on.checked;
           return body;
         };
-        return { rate, changes, row: h("li", { class: "statefee" }, h("span", { class: "statefee__name" }, rate.state),
+        return { rate, changes, row: h("li", { class: "statefee" }, h("span", { class: "statefee__name" }, rate.city ? rate.city + " town" : rates.some((r) => r.state === rate.state && r.city) ? rate.state + " (rest of state)" : rate.state),
           h("span", { class: "statefee__fee" }, h("span", { "aria-hidden": "true" }, "\u20a6"), fee), days, h("label", { class: "stock__sell" }, driver, h("span", {}, "Pay driver")), h("label", { class: "stock__sell" }, on, h("span", {}, "On"))) };
       });
       const save = isAdmin ? h("button", { class: "btn", type: "button" }, "Save state fees") : null;
