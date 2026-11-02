@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
@@ -37,7 +38,7 @@ def _check_quantity(variant: ProductVariant, quantity: int) -> None:
         raise ValidationError("This item is no longer available.")
     if quantity > MAX_PER_LINE:
         raise ValidationError(f"You can buy up to {MAX_PER_LINE} of one item per order.")
-    if quantity > variant.stock:
+    if not settings.UNLIMITED_STOCK and quantity > variant.stock:
         raise ValidationError(
             f"Only {variant.stock} left in this size and colour." if variant.stock else "This size and colour is sold out."
         )
@@ -73,7 +74,8 @@ def merge_guest_cart(request, user) -> None:
     mine, _ = Cart.objects.get_or_create(user=user)
     for line in guest.items.select_related("variant"):
         existing = mine.items.filter(variant=line.variant).first()
-        quantity = min((existing.quantity if existing else 0) + line.quantity, line.variant.stock, MAX_PER_LINE)
+        quantity = min((existing.quantity if existing else 0) + line.quantity, MAX_PER_LINE,
+                       MAX_PER_LINE if settings.UNLIMITED_STOCK else line.variant.stock)
         if quantity < 1:
             continue
         if existing:
@@ -89,7 +91,7 @@ def summarize(cart: Cart | None) -> dict:
     from apps.catalog.pricing import price_lines, wholesale_terms
 
     items = list(cart_items(cart))
-    usable = [item for item in items if purchasable(item.variant) and item.variant.stock >= item.quantity]
+    usable = [item for item in items if purchasable(item.variant) and (settings.UNLIMITED_STOCK or item.variant.stock >= item.quantity)]
     priced = dict(zip([item.pk for item in usable], price_lines([(item.variant, item.quantity) for item in usable])))
     pieces: dict[int, int] = {}
     for item in usable:
@@ -119,7 +121,7 @@ def summarize(cart: Cart | None) -> dict:
             "image": images[0].image.url if images else None, "unit_price": v.unit_price,
             "quantity": item.quantity, "line_total": line_total, "retail_total": retail,
             "wholesale_units": line.wholesale_units if line else 0, "wholesale_hint": hint,
-            "max_quantity": min(v.stock, MAX_PER_LINE), "available": ok,
+            "max_quantity": MAX_PER_LINE if settings.UNLIMITED_STOCK else min(v.stock, MAX_PER_LINE), "available": ok,
             "problem": None if ok else ("No longer available" if not purchasable(v) or v.stock == 0 else f"Only {v.stock} left"),
         })
     from apps.orders.fees import percent_label, service_bp

@@ -5,6 +5,7 @@
   const $ = (selector, root) => (root || document).querySelector(selector);
   const page = document.body.dataset.page;
   const isAdmin = ["admin", "super_admin"].includes(document.body.dataset.role);
+  const unlimited = document.body.dataset.unlimited === "true"; // no stock counts: every size and colour can always be ordered
   const toKobo = (naira) => (naira === "" || naira === null ? null : Math.round(parseFloat(naira) * 100));
   const fromKobo = (kobo) => (kobo === null || kobo === undefined ? "" : String(kobo / 100));
   const badge = (status, label) => h("span", { class: "badge badge--" + status }, label);
@@ -61,7 +62,7 @@
         tile("Last 30 days", money(s.revenue.month)), tile("All time", money(s.revenue.all_time)),
         tile("Orders to fulfil", String(s.orders.to_fulfil), "/dashboard/orders/?status=paid"),
         tile("Awaiting payment", String(s.orders.awaiting_payment)), tile("Customers", String(s.customers)),
-        tile("Low stock items", String(s.low_stock_count)));
+        s.unlimited_stock ? tile("Products", String(s.products), "/dashboard/products/") : tile("Low stock items", String(s.low_stock_count)));
       const peak = Math.max(1, ...s.daily_revenue.map((d) => d.revenue));
       $("[data-bars]").replaceChildren(...s.daily_revenue.map((d) => {
         const bar = h("div", { class: "bar__fill" });
@@ -69,7 +70,7 @@
         return h("div", { class: "bar", title: money(d.revenue) }, h("span", { class: "bar__value" }, d.revenue ? money(d.revenue) : ""), bar,
           h("span", { class: "bar__label" }, new Date(d.date).toLocaleDateString("en-NG", { weekday: "short" })));
       }));
-      $("[data-low]").replaceChildren(s.low_stock.length
+      if ($("[data-low]")) $("[data-low]").replaceChildren(s.low_stock.length
         ? table(["Item", "Left"], s.low_stock.map((v) => [h("a", { href: "/dashboard/products/" + v.product_id + "/" }, v.product + " (" + v.label + ")"), String(v.stock)]))
         : empty("Everything is well stocked."));
       $("[data-top]").replaceChildren(s.top_products.length
@@ -129,14 +130,16 @@
 
   /* ---------- products ---------- */
   if (page === "products") {
-    pagedList("/admin/products/", ["Product", "Category", "Price", "Stock", "Shop", ""], (products) => products.map((p) => {
+    pagedList("/admin/products/", ["Product", "Category", "Price", unlimited ? "Sizes" : "Stock", "Shop", ""], (products) => products.map((p) => {
       const row = [
         h("a", { class: "prod", href: "/dashboard/products/" + p.id + "/" },
           p.images.length ? h("img", { src: p.images[0].url, alt: "", width: 44, height: 55, loading: "lazy" }) : h("span", { class: "card__blank prod__blank", "aria-hidden": "true" }, "EW"),
           h("span", {}, p.name)),
         p.category_name,
         p.discount_price ? money(p.discount_price) + " (was " + money(p.price) + ")" : money(p.price),
-        h("span", { class: p.total_stock ? "" : "stock-note--low" }, p.total_stock ? String(p.total_stock) : "0 (sold out)"),
+        unlimited
+          ? h("span", { class: p.variants.length ? "" : "stock-note--low" }, p.variants.length ? p.variants.length + (p.variants.length === 1 ? " size" : " sizes and colours") : "None yet")
+          : h("span", { class: p.total_stock ? "" : "stock-note--low" }, p.total_stock ? String(p.total_stock) : "0 (sold out)"),
         badge(p.is_published ? "approved" : "pending", p.is_published ? "Showing" : "Hidden"),
         h("div", { class: "actions" },
           h("a", { class: "btn btn--ghost btn--small", href: "/dashboard/products/" + p.id + "/" }, "Edit"),
@@ -199,7 +202,7 @@
        or tap the number to type the exact quantity. */
     function renderVariants(variants) {
       const host = $("[data-variants]");
-      if (!variants.length) { host.replaceChildren(empty("No sizes yet, so the shop shows this as sold out. Open the box below, tick the sizes, type the colours and press Add to stock.")); return; }
+      if (!variants.length) { host.replaceChildren(empty(unlimited ? "No sizes yet, so customers cannot order this. Open the box below, tick the sizes, type the colours and press Add sizes and colours." : "No sizes yet, so the shop shows this as sold out. Open the box below, tick the sizes, type the colours and press Add to stock.")); return; }
       const ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL", "4XL"];
       const rank = (size) => { const i = ORDER.indexOf(String(size).toUpperCase()); return i === -1 ? 99 : i; };
       const refresh = (updated) => renderVariants(variants.map((x) => (x.id === updated.id ? updated : x)));
@@ -209,7 +212,9 @@
       const total = variants.reduce((sum, v) => sum + v.stock, 0);
 
       host.replaceChildren(
-        h("p", { class: "muted" }, total + " in stock across " + variants.length + (variants.length === 1 ? " size" : " sizes and colours") + ". Tap a number to type the exact quantity."),
+        h("p", { class: "muted" }, unlimited
+          ? variants.length + (variants.length === 1 ? " size" : " sizes and colours") + ". Untick Selling to stop selling one."
+          : total + " in stock across " + variants.length + (variants.length === 1 ? " size" : " sizes and colours") + ". Tap a number to type the exact quantity."),
         h("div", { class: "stock" }, [...groups.values()].map((list) => {
           const first = list[0], dot = h("span", { class: "swatch", "aria-hidden": "true" });
           dot.style.background = first.color_hex || "#C9B8A3";
@@ -231,8 +236,8 @@
               plus.addEventListener("click", () => move(v, 1, plus));
               const selling = h("input", { type: "checkbox", checked: v.is_active, disabled: !isAdmin, "aria-label": "Sell " + label,
                 onchange: async (e) => { try { refresh(await api("/admin/variants/" + v.id + "/", { method: "PATCH", body: { is_active: e.target.checked } })); } catch (error) { toast(error.message, "error"); e.target.checked = !e.target.checked; } } });
-              return h("li", { class: "stock__row" + (v.is_active ? "" : " is-off") },
-                h("span", { class: "stock__size" }, v.size), minus, count, plus,
+              return h("li", { class: "stock__row" + (v.is_active ? "" : " is-off") + (unlimited ? " stock__row--plain" : "") },
+                h("span", { class: "stock__size" }, v.size), ...(unlimited ? [] : [minus, count, plus]),
                 h("label", { class: "stock__sell" }, selling, h("span", {}, "Selling")));
             })));
         })));
@@ -244,7 +249,7 @@
       const sizes = Array.from(source.querySelectorAll('input[name="size_opt"]:checked')).map((el) => el.value).concat(extra);
       const colors = source.elements.colors.value.split(",").map((c) => c.trim()).filter(Boolean);
       const problem = !sizes.length ? "Tick at least one size, or type one under Other sizes." : sizes.some((x) => x.length > 10) ? "Keep each size to 10 characters or fewer." : !colors.length ? "Type at least one colour, for example Black." : null;
-      return { problem, body: { fit: source.elements.fit.value, sizes, colors, quantity: parseInt(source.elements.quantity.value, 10) || 0 } };
+      return { problem, body: { fit: source.elements.fit.value, sizes, colors, quantity: source.elements.quantity ? parseInt(source.elements.quantity.value, 10) || 0 : 0 } };
     }
     /* Phone photos are often 5 to 20 MB. Shrink them in the browser first so uploads are quick on mobile data;
        the server shrinks again as a backstop and accepts originals up to 20 MB. */
@@ -301,7 +306,7 @@
       const created = await api("/admin/products/", { method: "POST", body });
       id = String(created.id); // if a later step fails, pressing Save again updates this product instead of making a second one
       try {
-        say("Adding sizes and stock\u2026");
+        say(unlimited ? "Adding sizes and colours\u2026" : "Adding sizes and stock\u2026");
         await api("/admin/products/" + created.id + "/sizes/", { method: "POST", body: choice.body });
         const problems = await uploadPhotos(created.id, Array.from(form.elements.photos.files), say);
         if (problems.length) window.alert("The product was saved, but these photos did not upload:\n\n" + problems.join("\n") + "\n\nYou can add photos again on the next page.");
@@ -322,7 +327,7 @@
       if (choice.problem) { throw new window.EW.ApiError(400, { error: { message: choice.problem } }); }
       renderVariants((await api("/admin/products/" + id + "/sizes/", { method: "POST", body: choice.body })).variants);
       sizesForm.elements.colors.value = "";
-      toast("Stock added.");
+      toast(unlimited ? "Sizes and colours added." : "Stock added.");
     });
 
     $("[data-archive]").addEventListener("click", (e) => {

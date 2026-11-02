@@ -16,6 +16,6 @@
   <input id="{{ prefix }}colors" name="colors" placeholder="Black, White, Brown" required>
   <p class="hint">For products with no colour, such as perfumes, type the scent or just "Standard".</p>
   <p class="field-error" data-error-for="colors"></p></div>
-<div class="field"><label for="{{ prefix }}quantity">How many of each size and colour</label>
+{% if not unlimited_stock %}<div class="field"><label for="{{ prefix }}quantity">How many of each size and colour</label>
   <input id="{{ prefix }}quantity" name="quantity" type="number" min="0" value="10" required>
-  <p class="hint">Example: 3 colours in 4 sizes at 10 each is 120 tees. You can change any single one afterwards.</p></div>
+  <p class="hint">Example: 3 colours in 4 sizes at 10 each is 120 tees. You can change any single one afterwards.</p></div>{% endif %}

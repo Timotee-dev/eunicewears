@@ -4,7 +4,7 @@ from . import content as site_content
 
 
 def site(request) -> dict:
-    return {"SITE_NAME": settings.SITE_NAME, "SITE_URL": settings.SITE_URL}
+    return {"SITE_NAME": settings.SITE_NAME, "SITE_URL": settings.SITE_URL, "unlimited_stock": settings.UNLIMITED_STOCK}
 
 
 def content(request) -> dict:

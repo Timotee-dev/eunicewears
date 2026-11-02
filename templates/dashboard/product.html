@@ -22,7 +22,7 @@
         <p class="hint" data-wholesale-hint>Leave both empty if you do not sell this product wholesale.</p>
       </fieldset>
       {% if not pk %}
-      <h2>2. Sizes, colours and stock</h2>
+      <h2>2. Sizes and colours{% if not unlimited_stock %} and stock{% endif %}</h2>
       {% include "dashboard/_size_fields.html" with prefix="n_" %}
       <h2>3. Photos</h2>
       <div class="field"><label for="photos">Choose photos <span class="muted">(you can pick several; the first is the main one)</span></label>
@@ -56,15 +56,15 @@
       <button class="btn btn--ghost" type="submit" data-busy-label="Uploading">Upload</button></form>
   </section>
   <section class="dash__wide" data-after-create hidden>
-    <h2>Sizes, colours and stock</h2>
+    <h2>Sizes and colours{% if not unlimited_stock %} and stock{% endif %}</h2>
     <div data-variants></div>
     <details class="disclosure">
-      <summary>Add more sizes or colours, or restock several at once</summary>
+      <summary>Add more sizes or colours{% if not unlimited_stock %}, or restock several at once{% endif %}</summary>
       <form class="form product-new" data-form="sizes" novalidate>
         <p class="form-error" role="alert" data-form-error hidden></p>
         {% include "dashboard/_size_fields.html" with prefix="e_" %}
-        <p class="hint">A size and colour you already have simply gets this quantity added to its stock.</p>
-        <button class="btn" type="submit" data-busy-label="Adding">Add to stock</button>
+        {% if not unlimited_stock %}<p class="hint">A size and colour you already have simply gets this quantity added to its stock.</p>{% endif %}
+        <button class="btn" type="submit" data-busy-label="Adding">{% if unlimited_stock %}Add sizes and colours{% else %}Add to stock{% endif %}</button>
       </form>
     </details>
   </section>

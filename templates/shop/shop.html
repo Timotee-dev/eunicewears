@@ -13,7 +13,7 @@
     <div class="field"><label for="f_size">Size</label><select id="f_size" name="size"><option value="">All sizes</option></select></div>
     <div class="field"><label for="f_color">Colour</label><select id="f_color" name="color"><option value="">All colours</option></select></div>
     <div class="field"><label for="f_sort">Sort</label><select id="f_sort" name="sort"><option value="">Newest</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></div>
-    <label class="check"><input type="checkbox" name="in_stock" value="1"> In stock only</label>
+    {% if not unlimited_stock %}<label class="check"><input type="checkbox" name="in_stock" value="1"> In stock only</label>{% endif %}
     <button class="btn btn--ghost btn--small" type="reset">Clear filters</button>
   </form>
   <ul class="grid" data-grid aria-busy="true"></ul>

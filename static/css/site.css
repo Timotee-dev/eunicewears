@@ -909,6 +909,7 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
 .stock__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
 .stock__row { display: grid; grid-template-columns: 3rem 2.5rem minmax(3rem, 1fr) 2.5rem auto; align-items: center; gap: 0.4rem; }
 .stock__row.is-off { opacity: 0.55; }
+.stock__row--plain { grid-template-columns: minmax(3rem, 1fr) auto; }
 .stock__size { font-weight: 600; }
 .stock__step { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.2rem; line-height: 1; cursor: pointer; transition: border-color 0.15s, color 0.15s, transform 0.15s; }
 .stock__step:hover:not([disabled]) { border-color: var(--brown); color: var(--brown); }
@@ -944,6 +945,7 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
 @media (max-width: 23rem) {
   .order-list a { grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem var(--space-1); }
   .stock__row { grid-template-columns: 2.4rem 2.25rem minmax(2.5rem, 1fr) 2.25rem auto; gap: 0.3rem; }
+  .stock__row--plain { grid-template-columns: minmax(2.5rem, 1fr) auto; }
   .stock__step { width: 2.25rem; height: 2.25rem; }
   .stock__sell span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }

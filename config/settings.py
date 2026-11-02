@@ -20,6 +20,9 @@ if RENDER_HOST:
 SITE_URL = (env("SITE_URL", default="") or (f"https://{RENDER_HOST}" if RENDER_HOST else "http://localhost:8000")).rstrip("/")
 SITE_NAME = "Eunice Wears"
 DJANGO_ADMIN_PATH = env("DJANGO_ADMIN_PATH", default="backoffice/")
+# Unlimited stock: the owner restocks to order, so nothing ever "sells out" and no quantities are typed in.
+# Set UNLIMITED_STOCK=False on Render to go back to counting stock.
+UNLIMITED_STOCK = env.bool("UNLIMITED_STOCK", default=True)
 
 INSTALLED_APPS = [
     "django.contrib.admin",

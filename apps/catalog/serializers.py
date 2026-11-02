@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 
 from .models import Category, Product, ProductImage, ProductVariant
@@ -32,9 +33,13 @@ class PublicVariantSerializer(serializers.ModelSerializer):
         fields = ["id", "fit", "size", "color", "color_hex", "price", "availability", "left"]
 
     def get_availability(self, v: ProductVariant) -> str:
+        if settings.UNLIMITED_STOCK:
+            return "in_stock"
         return "out" if v.stock == 0 else "low" if v.stock <= v.low_stock_threshold else "in_stock"
 
     def get_left(self, v: ProductVariant) -> int | None:
+        if settings.UNLIMITED_STOCK:
+            return None
         return v.stock if 0 < v.stock <= v.low_stock_threshold else None
 
 
@@ -65,7 +70,8 @@ class ProductListSerializer(serializers.ModelSerializer):
         return ImageSerializer(images[0]).data if images else None
 
     def get_in_stock(self, p: Product) -> bool:
-        return any(v.stock > 0 for v in self._variants(p))
+        variants = self._variants(p)
+        return bool(variants) if settings.UNLIMITED_STOCK else any(v.stock > 0 for v in variants)
 
     def get_colors(self, p: Product) -> list[dict]:
         seen: dict[str, str] = {}

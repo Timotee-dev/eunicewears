@@ -4,7 +4,7 @@
 <div class="tiles" data-tiles aria-busy="true"><div class="skeleton"></div></div>
 <div class="dash__cols">
   <section><h2>Revenue, last 7 days</h2><div class="bars" data-bars></div></section>
-  <section><h2>Low stock</h2><div data-low></div></section>
+  {% if not unlimited_stock %}<section><h2>Low stock</h2><div data-low></div></section>{% endif %}
   <section><h2>Top sellers</h2><div data-top></div></section>
   <section class="dash__wide"><h2>Recent orders</h2><div data-recent></div></section>
 </div>

@@ -24,6 +24,7 @@ def make_user(email: str, role: str = Role.CUSTOMER) -> User:
     return User.objects.create_user(email, PW, first_name="Ada", last_name="Obi", role=role, email_verified_at="2026-01-01T00:00:00Z")
 
 
+@override_settings(UNLIMITED_STOCK=False)  # these tests check stock counting; UnlimitedStockTests covers the default
 class StoreTestCase(APITestCase):
     def setUp(self) -> None:
         cache.clear()
@@ -234,3 +235,28 @@ class DashboardTests(StoreTestCase):
         shipped = self.client.post(url, {"status": "shipped", "tracking_number": "GIG-123"}, format="json").json()
         self.assertEqual((shipped["status"], shipped["tracking_number"]), ("shipped", "GIG-123"))
         self.assertEqual(self.client.get("/api/admin/stats/").json()["orders"]["total"], 1)
+
+
+@override_settings(UNLIMITED_STOCK=True, DEBUG=True, PAYMENT_PROVIDER="sandbox")
+class UnlimitedStockTests(StoreTestCase):
+    def test_nothing_sells_out_and_products_need_no_quantities(self) -> None:
+        ProductVariant.objects.filter(pk=self.variant.pk).update(stock=0)  # even a size with a zero count
+        self.client.force_authenticate(self.user)
+        product = self.client.get(f"/api/products/{self.product.slug}/").json()
+        self.assertEqual(product["variants"][0]["availability"], "in_stock")
+        self.assertEqual(self.add(40).status_code, 201)  # any amount
+        placed = self.checkout()
+        self.assertEqual(placed.status_code, 201, placed.content)
+        self.assertEqual(self.stock(), 0)  # selling never touches a count
+        order = Order.objects.get(number=placed.json()["order_number"])
+        self.assertEqual(order.items.get().quantity, 40)
+
+        # The owner adds a product with sizes and colours only.
+        self.client.force_authenticate(make_user("unlimited-admin@example.com", Role.ADMIN))
+        made = self.client.post("/api/admin/products/", {"name": "Wrap Gown", "category": self.category.pk, "price": 2_500_000}, format="json").json()
+        sized = self.client.post(f"/api/admin/products/{made['id']}/sizes/", {"fit": "", "sizes": ["S", "M"], "colors": ["Red", "Blue"]}, format="json")
+        self.assertEqual((sized.status_code, len(sized.json()["variants"])), (200, 4))
+        self.assertEqual(self.client.get("/api/admin/stats/").json()["low_stock_count"], 0)
+        page = self.client.get(f"/dashboard/products/{made['id']}/").content.decode()
+        self.assertNotIn("How many of each size and colour", page)
+        self.assertNotIn("Low stock", self.client.get("/dashboard/").content.decode())

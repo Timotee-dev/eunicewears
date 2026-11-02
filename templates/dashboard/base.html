@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
 </head>
-<body class="dash" data-page="{% block page %}{% endblock %}" data-role="{{ user.role }}">
+<body class="dash" data-page="{% block page %}{% endblock %}" data-role="{{ user.role }}" data-unlimited="{{ unlimited_stock|yesno:'true,false' }}">
   {% include "_sprite.html" %}
   <aside class="dash__side">
     <a class="logo" href="{% url 'dashboard' %}" aria-label="Eunice Wears dashboard">{% include "_logo.html" %}</a>

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import APIException
 
@@ -14,6 +15,8 @@ class InsufficientStock(APIException):
 def adjust_stock(variant_id: int, delta: int, reason: str, *, actor=None, order=None, note: str = "") -> ProductVariant:
     """The only way stock changes. Locks the row so concurrent buyers are served one at a time."""
     variant = ProductVariant.objects.select_for_update().select_related("product").get(pk=variant_id)
+    if settings.UNLIMITED_STOCK and reason in (InventoryTransaction.Reason.SALE, InventoryTransaction.Reason.RELEASE):
+        return variant  # unlimited stock: selling (or cancelling) never moves a count
     if variant.stock + delta < 0:
         raise InsufficientStock(
             f"Only {variant.stock} left of {variant.product.name} ({variant.label})."

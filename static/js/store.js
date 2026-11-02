@@ -108,7 +108,7 @@
       fill("size", facets.sizes);
       fill("color", facets.colors);
       ["q", "fit", "size", "color", "sort"].forEach((n) => { if (params.get(n)) form.elements[n].value = params.get(n); });
-      form.elements.in_stock.checked = params.get("in_stock") === "1";
+      if (form.elements.in_stock) form.elements.in_stock.checked = params.get("in_stock") === "1";
     }).catch(() => {}).finally(() => load());
 
     form.addEventListener("submit", (e) => { e.preventDefault(); load(); });

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db.models import Exists, OuterRef, Q
 from django.db.models.functions import Coalesce
 from rest_framework import generics
@@ -35,7 +36,7 @@ class ProductListView(generics.ListAPIView):
         for param in ("fit", "size", "color"):
             if p.get(param):
                 variants = variants.filter(**{f"{param}__iexact": p[param]})
-        if p.get("in_stock") == "1":
+        if p.get("in_stock") == "1" and not settings.UNLIMITED_STOCK:
             variants = variants.filter(stock__gt=0)
         if any(p.get(k) for k in ("fit", "size", "color")) or p.get("in_stock") == "1":
             qs = qs.filter(Exists(variants))

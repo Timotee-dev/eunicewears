@@ -1,3 +1,4 @@
+from django.conf import settings
 """Owner dashboard API. Every endpoint states its minimum role; the server enforces it."""
 import logging
 from datetime import timedelta
@@ -79,7 +80,7 @@ class QuickSizesSerializer(serializers.Serializer):
     fit = serializers.ChoiceField(choices=["oversized", "regular", ""], allow_blank=True, default="")
     sizes = serializers.ListField(child=serializers.CharField(max_length=10), min_length=1, max_length=12)
     colors = serializers.ListField(child=serializers.CharField(max_length=40), min_length=1, max_length=12)
-    quantity = serializers.IntegerField(min_value=0, max_value=100000)
+    quantity = serializers.IntegerField(min_value=0, max_value=100000, default=0)
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
@@ -111,6 +112,8 @@ class StatsView(APIView):
             day_total = paid_orders().filter(paid_at__gte=start, paid_at__lt=start + timedelta(days=1)).aggregate(t=Sum("total"))["t"] or 0
             daily.append({"date": start.date().isoformat(), "revenue": day_total})
         low = ProductVariant.objects.filter(is_active=True, product__archived_at__isnull=True, stock__lte=F("low_stock_threshold"))
+        if settings.UNLIMITED_STOCK:
+            low = low.none()
         top = (OrderItem.objects.filter(order__in=paid_orders()).values("product_name")
                .annotate(units=Sum("quantity"), revenue=Sum("line_total")).order_by("-units")[:5])
         return Response({
@@ -125,6 +128,7 @@ class StatsView(APIView):
             "low_stock": [{"product_id": v.product_id, "product": v.product.name, "label": v.label, "stock": v.stock}
                           for v in low.select_related("product").order_by("stock")[:10]],
             "low_stock_count": low.count(),
+            "unlimited_stock": settings.UNLIMITED_STOCK,
             "top_products": list(top),
             "recent_orders": AdminOrderListSerializer(Order.objects.select_related("user")[:6], many=True).data,
         })
