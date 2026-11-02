@@ -193,7 +193,7 @@ select:focus-visible, textarea:focus-visible { outline: 2px solid var(--ink); ou
 .shelf { padding-block: var(--space-5) 0; }
 .shelf__head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3); }
 .grid { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-4) var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); }
-@media (max-width: 34rem) { .grid { grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-2); } }
+@media (max-width: 34rem) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-2); } }
 .grid .empty { grid-column: 1 / -1; }
 .card a { display: grid; gap: 0.35rem; text-decoration: none; }
 .card__media { position: relative; background: var(--cream); aspect-ratio: 4 / 5; overflow: hidden; margin-bottom: var(--space-1); }
@@ -992,3 +992,9 @@ body[data-page="home"] .hero__showcase { max-width: 24rem; justify-self: end; }
   .statefee > input { grid-column: 1 / -1; grid-row: auto; }
   .statefee .stock__sell span { position: static; width: auto; height: auto; clip-path: none; }
 }
+
+/* A card never grows wider than its column: long colour lists wrap instead of stretching the card
+   (that pushed the photo out past the card's border on phones). */
+.grid > .card, .card a { min-width: 0; }
+.card__media img { display: block; max-width: 100%; }
+.swatches { flex-wrap: wrap; row-gap: 0.3rem; }
