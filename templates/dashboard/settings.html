@@ -5,6 +5,13 @@
   <p data-email-status class="muted">Checking&hellip;</p>
   <p class="form-error" role="alert" data-email-problem hidden></p>
   <button class="btn btn--ghost" type="button" data-email-test>Send me a test email</button></section>
+<section><h2>New order emails</h2>
+  <p class="muted">Every time an order is paid, an email with what was bought and where to deliver it goes to these addresses.</p>
+  <form class="form editor__row" data-form="order-alerts" novalidate>
+    <p class="form-error" role="alert" data-form-error hidden></p>
+    <div class="field"><label for="alert_emails">Send to <span class="muted">(separate with commas, up to 5)</span></label><input id="alert_emails" name="emails" type="text" inputmode="email" autocomplete="off" placeholder="Leave blank to use every admin account"><p class="hint" data-alert-to></p><p class="field-error" data-error-for="emails"></p></div>
+    <button class="btn btn--small" type="submit" data-busy-label="Saving">Save</button>
+  </form></section>
 <section><h2>Service charge</h2>
   <p class="muted">The service charge is added at checkout on the price of the goods (after any promo code), not on delivery. Set 0 to turn it off.</p>
   <form class="form editor__row" data-form="fees" novalidate>

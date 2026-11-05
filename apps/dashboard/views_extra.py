@@ -325,6 +325,48 @@ class EmailCheckView(APIView):
 
 
 
+class OrderAlertsSerializer(serializers.Serializer):
+    emails = serializers.CharField(allow_blank=True, max_length=600)
+
+    def validate_emails(self, value: str) -> list[str]:
+        from django.core.validators import validate_email
+
+        found = list(dict.fromkeys(e.strip().lower() for e in value.replace(";", ",").replace("\n", ",").split(",") if e.strip()))
+        bad = []
+        for e in found:
+            try:
+                validate_email(e)
+            except Exception:
+                bad.append(e)
+        if bad:
+            raise serializers.ValidationError(f"Check {', '.join(bad)}: that is not an email address.")
+        if len(found) > 5:
+            raise serializers.ValidationError("Up to 5 email addresses.")
+        return found
+
+
+class OrderAlertsView(APIView):
+    """Who gets an email when an order is paid. Blank means every admin account."""
+
+    def get_permissions(self):
+        return [IsStaff()] if self.request.method == "GET" else [IsAdmin()]
+
+    def get(self, request) -> Response:
+        from apps.orders.alerts import chosen_emails, recipients
+
+        return Response({"emails": ", ".join(chosen_emails()), "sending_to": recipients()})
+
+    def put(self, request) -> Response:
+        from apps.orders.alerts import KEY, recipients
+
+        data = OrderAlertsSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        emails = data.validated_data["emails"]
+        setting, _ = SiteSetting.objects.update_or_create(key=KEY, defaults={"value": {"emails": emails}})
+        audit.record("order_alerts.updated", request=request, obj=setting, changes={"emails": emails})
+        return Response({"emails": ", ".join(emails), "sending_to": recipients()})
+
+
 class FeesSerializer(serializers.Serializer):
     service_percent = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=20)
     customer_pays_paystack = serializers.BooleanField(required=False)

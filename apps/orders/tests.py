@@ -260,3 +260,41 @@ class UnlimitedStockTests(StoreTestCase):
         page = self.client.get(f"/dashboard/products/{made['id']}/").content.decode()
         self.assertNotIn("How many of each size and colour", page)
         self.assertNotIn("Low stock", self.client.get("/dashboard/").content.decode())
+
+
+class NewOrderAlertTests(CheckoutTests):
+    """Reuses CheckoutTests' set-up and pay() helper; its own tests run only once, in CheckoutTests."""
+
+    def test_owner_is_emailed_when_an_order_is_paid(self) -> None:
+        make_user("owner@example.com", Role.ADMIN)
+        make_user("helper@example.com", Role.STAFF)  # staff are not emailed by default
+        result = self.pay("success")
+        order = Order.objects.get(number=result["order_number"])
+        by_to = {m.to[0]: m for m in mail.outbox}
+        self.assertEqual(set(by_to), {self.user.email, "owner@example.com"})
+        alert = by_to["owner@example.com"]
+        self.assertIn(f"New order {order.number}", alert.subject)
+        html = alert.alternatives[0][0]
+        self.assertIn(order.phone, html)
+        self.assertIn(f"/dashboard/orders/{order.number}/", html)
+        # Paying is confirmed once, so the owner is emailed once.
+        self.client.post("/api/payments/verify/", {"reference": result["reference"]}, format="json")
+        self.assertEqual(sum(1 for m in mail.outbox if m.to == ["owner@example.com"]), 1)
+
+    def test_owner_can_choose_where_alerts_go(self) -> None:
+        self.client.force_authenticate(make_user("owner2@example.com", Role.ADMIN))
+        self.assertEqual(self.client.get("/api/admin/order-alerts/").json(), {"emails": "", "sending_to": ["owner2@example.com"]})
+        bad = self.client.put("/api/admin/order-alerts/", {"emails": "eunice@gmail.com, nope"}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        saved = self.client.put("/api/admin/order-alerts/", {"emails": "Eunice@Gmail.com; shop@example.com"}, format="json").json()
+        self.assertEqual(saved["sending_to"], ["eunice@gmail.com", "shop@example.com"])
+        self.client.force_authenticate(make_user("staffer@example.com", Role.STAFF))
+        self.assertEqual(self.client.put("/api/admin/order-alerts/", {"emails": ""}, format="json").status_code, 403)
+        self.client.force_authenticate(self.user)
+        mail.outbox.clear()
+        self.pay("success")
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), sorted([self.user.email, "eunice@gmail.com", "shop@example.com"]))
+
+
+for _name in [n for n in vars(CheckoutTests) if n.startswith("test_")]:
+    setattr(NewOrderAlertTests, _name, None)

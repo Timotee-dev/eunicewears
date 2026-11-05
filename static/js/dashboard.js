@@ -544,6 +544,17 @@
         emailTest.disabled = false;
       });
     }
+    const alerts = $('[data-form="order-alerts"]');
+    if (alerts) {
+      const showTo = (a) => { $("[data-alert-to]").textContent = a.sending_to.length ? "Sending to: " + a.sending_to.join(", ") : "No admin email found yet."; };
+      if (!isAdmin) alerts.querySelectorAll("input, button").forEach((el) => { el.disabled = true; });
+      api("/admin/order-alerts/").then((a) => { alerts.elements.emails.value = a.emails; showTo(a); }).catch(() => {});
+      bindForm(alerts, async (data) => {
+        const saved = await api("/admin/order-alerts/", { method: "PUT", body: { emails: data.emails || "" } });
+        alerts.elements.emails.value = saved.emails; showTo(saved);
+        toast("New order emails will go to " + saved.sending_to.join(", ") + ".");
+      });
+    }
     const fees = $('[data-form="fees"]');
     if (fees) {
       if (!isAdmin) fees.querySelectorAll("input, button").forEach((el) => { el.disabled = true; });

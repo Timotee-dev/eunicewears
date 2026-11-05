@@ -19,6 +19,7 @@ from apps.core.permissions import has_role
 from apps.marketing.models import PromoCodeUsage
 from apps.marketing.services import apply_promo
 
+from .alerts import send_new_order_alert
 from .fees import percent_label, processing_fee, service_bp, service_charge
 from .models import Order, OrderEvent, OrderItem, OrderStatus, Payment, PaymentStatus, ShippingMethod
 from .payments import ProviderError, get_provider
@@ -261,6 +262,7 @@ def confirm_payment(reference: str) -> Payment:
         order.status = S.PAID
         OrderEvent.objects.create(order=order, status=S.PAID, note="Payment confirmed")
         transaction.on_commit(lambda: _send_confirmation(order.pk))
+        transaction.on_commit(lambda: send_new_order_alert(order.pk))
     else:  # money arrived after the order was cancelled/expired: the owner must refund it
         OrderEvent.objects.create(order=order, status=order.status, is_public=False,
                                   note="Payment received after cancellation. Refund this payment on Paystack.")
